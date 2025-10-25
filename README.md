@@ -1,12 +1,82 @@
-# Home Accessibility Checker - AWS Lambda Backend
+# HousingA - Comprehensive Housing Analysis Platform
+
+This repository contains two complementary projects for housing analysis and accessibility assessment:
+
+## 🏠 Project 1: Zillow Image Scraper (Web Application)
+
+A comprehensive Python application that scrapes property images from Zillow listings and stores them in organized S3 buckets. Features both a command-line interface and a modern web application.
+
+### 🚀 Features
+
+#### Core Functionality
+- ✅ **Smart Image Extraction** - Finds all unique property images from Zillow listings
+- ✅ **S3 Integration** - Automatically uploads images to organized S3 folders
+- ✅ **Web Interface** - Modern, responsive web application
+- ✅ **High-Quality Images** - Downloads highest resolution available (1536px)
+- ✅ **Duplicate Filtering** - Removes duplicate images across different resolutions
+- ✅ **Error Handling** - Graceful handling of network issues and missing data
+
+#### Web Application Features
+- 🎨 **Modern UI** - Bootstrap-based responsive design
+- 📱 **Mobile Friendly** - Works on all device sizes
+- 🖼️ **Image Gallery** - Beautiful gallery view with modal lightbox
+- 📋 **Copy URLs** - Easy copying of S3 URLs to clipboard
+- ⬇️ **Bulk Download** - Download all images at once
+- 📊 **Statistics** - View image counts and processing status
+
+### 🏗️ Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Web Frontend  │────│   Flask API      │────│   S3 Storage    │
+│   (HTML/JS)     │    │   (Python)      │    │   (AWS)         │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │  Zillow Scraper  │
+                       │  (Core Logic)    │
+                       └──────────────────┘
+```
+
+### 🚀 Usage
+
+#### Web Application
+1. **Start the web server**
+```bash
+python app.py
+```
+
+2. **Open your browser**
+```
+http://localhost:5000
+```
+
+3. **Enter a Zillow URL and click "Extract Images"**
+
+#### Command Line Interface
+```bash
+# Basic usage
+python zillow_image_scraper.py "https://www.zillow.com/homedetails/123-Main-St-San-Jose-CA-95112/123456_zpid/"
+
+# Upload to S3
+python zillow_image_scraper.py "https://www.zillow.com/homedetails/123-Main-St-San-Jose-CA-95112/123456_zpid/" --s3
+
+# Download locally
+python zillow_image_scraper.py "https://www.zillow.com/homedetails/123-Main-St-San-Jose-CA-95112/123456_zpid/" --download
+```
+
+---
+
+## ♿ Project 2: Home Accessibility Checker (AWS Lambda Backend)
 
 A Python-based AWS Lambda backend system for analyzing home environments and providing accessibility recommendations using Amazon Rekognition and Amazon Bedrock.
 
-## Architecture Overview
+### 🏗️ Architecture Overview
 
 This backend system consists of two main Lambda functions that work together to analyze home images and generate accessibility recommendations:
 
-### 1. Rekognition Handler (`/lambdas/rekognition_handler/`)
+#### 1. Rekognition Handler (`/lambdas/rekognition_handler/`)
 - **Purpose**: Processes images using Amazon Rekognition to detect objects, labels, and accessibility features
 - **Input**: S3 bucket and key for image location
 - **Output**: Analysis results including detected objects, accessibility features, and potential barriers
@@ -16,7 +86,7 @@ This backend system consists of two main Lambda functions that work together to 
   - Barrier detection
   - Accessibility scoring
 
-### 2. LLM Handler (`/lambdas/llm_handler/`)
+#### 2. LLM Handler (`/lambdas/llm_handler/`)
 - **Purpose**: Uses Amazon Bedrock to generate intelligent recommendations based on Rekognition analysis
 - **Input**: Rekognition analysis results and image metadata
 - **Output**: Structured recommendations and improvement suggestions
@@ -25,7 +95,7 @@ This backend system consists of two main Lambda functions that work together to 
   - Improvement suggestions with priority levels
   - Cost and implementation difficulty estimates
 
-## Project Structure
+### 📁 Project Structure
 
 ```
 aws/
@@ -50,137 +120,30 @@ aws/
 └── README.md                       # This file
 ```
 
-## Dependencies
+### 🔧 AWS Services Used
 
-- **Python 3.11**: Required Python version
-- **boto3**: AWS SDK for Python
-- **requests**: HTTP library for external API calls
-- **python-dotenv**: Environment variable management
-
-## Environment Configuration
-
-Copy `env.example` to `.env` and configure the following variables:
-
-```bash
-# AWS Configuration
-AWS_REGION=us-east-1
-S3_BUCKET_NAME=your-accessibility-checker-bucket
-BEDROCK_MODEL_ID=anthropic.claude-3-sonnet-20240229-v1:0
-
-# Optional: Additional configuration
-LOG_LEVEL=INFO
-MAX_IMAGE_SIZE_MB=10
-```
-
-## AWS Services Used
-
-### Amazon Rekognition
+#### Amazon Rekognition
 - **Object Detection**: Identifies furniture, fixtures, and architectural elements
 - **Label Detection**: Recognizes accessibility-related features and barriers
 - **Custom Analysis**: Analyzes images for accessibility compliance
 
-### Amazon Bedrock
+#### Amazon Bedrock
 - **Claude 3 Sonnet**: Large Language Model for generating recommendations
 - **Structured Output**: JSON-formatted recommendations and suggestions
 - **Context-Aware**: Uses Rekognition results to provide relevant advice
 
-### Amazon S3
+#### Amazon S3
 - **Image Storage**: Stores uploaded home images for analysis
 - **Lambda Integration**: Provides images to Lambda functions
 
-## Lambda Function Details
+### 🚀 Usage Flow
 
-### Rekognition Handler
+1. **Image Upload**: User uploads home image to S3
+2. **Rekognition Analysis**: First Lambda processes image with Amazon Rekognition
+3. **LLM Processing**: Second Lambda generates recommendations using Bedrock
+4. **Response**: Structured recommendations returned to client
 
-**Trigger**: API Gateway, S3 Event, or direct invocation
-**Input Format**:
-```json
-{
-  "bucket": "your-s3-bucket",
-  "key": "path/to/image.jpg"
-}
-```
-
-**Output Format**:
-```json
-{
-  "statusCode": 200,
-  "body": {
-    "success": true,
-    "results": {
-      "objects": [...],
-      "labels": [...],
-      "accessibility_analysis": {
-        "accessibility_features": [...],
-        "potential_barriers": [...],
-        "summary": {
-          "accessibility_score": 75.0
-        }
-      }
-    }
-  }
-}
-```
-
-### LLM Handler
-
-**Trigger**: Rekognition Handler output or direct invocation
-**Input Format**:
-```json
-{
-  "rekognition_results": {...},
-  "image_metadata": {...}
-}
-```
-
-**Output Format**:
-```json
-{
-  "statusCode": 200,
-  "body": {
-    "success": true,
-    "recommendations": [
-      {
-        "title": "Install Grab Bars",
-        "description": "Add grab bars in the bathroom...",
-        "priority": "high",
-        "category": "safety",
-        "estimated_cost": "low"
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Widen Doorways",
-        "description": "Consider widening doorways...",
-        "implementation_difficulty": "complex",
-        "category": "structural",
-        "estimated_impact": "high"
-      }
-    ]
-  }
-}
-```
-
-## Utility Modules
-
-### ImageProcessor (`utils/image_processor.py`)
-- Handles Amazon Rekognition API calls
-- Analyzes images for accessibility features
-- Calculates accessibility scores
-- Identifies potential barriers
-
-### BedrockClient (`utils/bedrock_client.py`)
-- Manages Amazon Bedrock API interactions
-- Generates structured recommendations
-- Provides improvement suggestions
-- Handles LLM response parsing
-
-### Logger (`utils/logger.py`)
-- Centralized logging configuration
-- Environment-based log levels
-- Structured log formatting
-
-## Testing
+### 🧪 Testing
 
 Run tests using pytest:
 
@@ -198,63 +161,159 @@ pytest tests/test_rekognition_handler.py
 pytest -v tests/
 ```
 
-## Deployment
+---
+
+## 📦 Installation & Setup
 
 ### Prerequisites
-1. AWS CLI configured with appropriate permissions
-2. Python 3.11 runtime available
-3. Required AWS services enabled (Rekognition, Bedrock, S3)
+- Python 3.9+ (for Zillow scraper) / Python 3.11 (for Lambda backend)
+- AWS Account with S3 access
+- AWS credentials configured
 
-### Lambda Deployment
-1. Package each Lambda function separately
-2. Upload to AWS Lambda
-3. Configure environment variables
-4. Set up appropriate IAM roles
+### Setup Steps
 
-### IAM Permissions Required
-- **Rekognition**: `rekognition:DetectObjects`, `rekognition:DetectLabels`
-- **Bedrock**: `bedrock:InvokeModel`
-- **S3**: `s3:GetObject` (for image access)
-- **CloudWatch**: `logs:CreateLogGroup`, `logs:CreateLogStream`, `logs:PutLogEvents`
+1. **Clone the repository**
+```bash
+git clone https://github.com/G-Krishna-chandra/housingA.git
+cd housingA
+```
 
-## Usage Flow
+2. **Install dependencies**
+```bash
+pip install -r requirements.txt
+```
 
-1. **Image Upload**: User uploads home image to S3
-2. **Rekognition Analysis**: First Lambda processes image with Amazon Rekognition
-3. **LLM Processing**: Second Lambda generates recommendations using Bedrock
-4. **Response**: Structured recommendations returned to client
+3. **Configure AWS credentials**
+```bash
+# Option 1: AWS CLI
+aws configure
 
-## Error Handling
+# Option 2: Environment variables
+export AWS_ACCESS_KEY_ID=your_access_key
+export AWS_SECRET_ACCESS_KEY=your_secret_key
+export AWS_DEFAULT_REGION=us-east-1
+```
 
-- **Graceful Degradation**: System continues to function even if some services fail
-- **Comprehensive Logging**: All operations are logged for debugging
-- **User-Friendly Errors**: Clear error messages for different failure scenarios
-- **Retry Logic**: Built-in retry mechanisms for transient failures
+4. **Set up environment variables**
+```bash
+cp env.example .env
+# Edit .env with your configuration
+```
 
-## Performance Considerations
+## 🐳 Docker Deployment
 
-- **Cold Start Optimization**: Minimal dependencies and fast initialization
-- **Memory Management**: Efficient image processing and response handling
-- **Timeout Configuration**: Appropriate timeout settings for different operations
-- **Concurrent Processing**: Support for multiple simultaneous requests
+### Using Docker Compose
+```bash
+# Build and start the application
+docker-compose up --build
 
-## Security
+# Run in background
+docker-compose up -d
+```
 
-- **IAM Roles**: Least privilege access for Lambda functions
-- **Environment Variables**: Secure configuration management
-- **Input Validation**: Comprehensive input sanitization
-- **Error Sanitization**: No sensitive information in error responses
+## 🔧 Configuration
 
-## Monitoring and Observability
+### Environment Variables
+- `AWS_ACCESS_KEY_ID` - Your AWS access key
+- `AWS_SECRET_ACCESS_KEY` - Your AWS secret key
+- `AWS_DEFAULT_REGION` - AWS region (default: us-east-1)
+- `S3_BUCKET_NAME` - S3 bucket name (default: zillow-images)
+- `BEDROCK_MODEL_ID` - Bedrock model ID for Lambda backend
+- `FLASK_ENV` - Flask environment (development/production)
+- `SECRET_KEY` - Flask secret key for sessions
+- `PORT` - Server port (default: 5000)
 
-- **CloudWatch Logs**: Comprehensive logging for all operations
-- **Metrics**: Custom metrics for accessibility scores and processing times
-- **Alarms**: Automated alerts for errors and performance issues
-- **Tracing**: Distributed tracing for request flow analysis
+## 📁 S3 Organization
 
-## Future Enhancements
+Images are stored in S3 with the following structure:
+```
+your-bucket/
+├── listings/
+│   ├── zpid_123456/
+│   │   ├── image_001.jpg
+│   │   ├── image_002.webp
+│   │   └── ...
+│   ├── zpid_789012/
+│   │   ├── image_001.jpg
+│   │   └── ...
+│   └── ...
+```
 
-- **Multi-language Support**: Support for different languages in recommendations
-- **Custom Models**: Fine-tuned models for specific accessibility requirements
-- **Batch Processing**: Support for analyzing multiple images simultaneously
-- **Integration APIs**: RESTful APIs for external system integration
+## 🛠️ API Endpoints
+
+### Web Endpoints
+- `GET /` - Main application page
+- `GET /gallery/<job_id>` - View image gallery
+- `GET /status/<job_id>` - Check processing status
+- `GET /results/<job_id>` - Get detailed results
+
+### API Endpoints
+- `POST /process` - Process a Zillow URL
+  ```json
+  {
+    "url": "https://www.zillow.com/homedetails/..."
+  }
+  ```
+
+## 🔍 How It Works
+
+### Zillow Scraper
+1. **URL Validation** - Ensures the URL is a valid Zillow listing
+2. **Page Fetching** - Downloads the listing page with browser-like headers
+3. **Image Discovery** - Multiple methods to find images:
+   - JSON data extraction
+   - HTML parsing
+   - Pattern matching
+4. **Deduplication** - Removes duplicate images across resolutions
+5. **S3 Upload** - Organizes and uploads images to S3
+6. **Results** - Returns organized image URLs and metadata
+
+### Accessibility Checker
+1. **Image Analysis** - Amazon Rekognition analyzes uploaded images
+2. **Feature Detection** - Identifies accessibility features and barriers
+3. **AI Recommendations** - Amazon Bedrock generates intelligent suggestions
+4. **Structured Output** - Returns prioritized recommendations and improvements
+
+## 🚨 Error Handling
+
+Both applications handle various error conditions:
+- Invalid URLs
+- Network connectivity issues
+- Missing AWS credentials
+- S3 upload failures
+- Malformed image data
+- Rate limiting
+
+## 📊 Performance
+
+- **Processing Time**: Typically 10-30 seconds per listing
+- **Image Quality**: 1536px resolution (highest available)
+- **Storage**: Organized by listing ID in S3
+- **Scalability**: Handles multiple concurrent requests
+
+## 🔒 Security
+
+- AWS IAM credentials for S3 access
+- Input validation for URLs
+- Error message sanitization
+- Rate limiting protection
+
+## 📝 License
+
+This project is open source and available under the MIT License.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📞 Support
+
+For issues and questions:
+1. Check the error messages in the web interface
+2. Review the command-line output for detailed error information
+3. Ensure AWS credentials are properly configured
+4. Verify S3 bucket permissions
