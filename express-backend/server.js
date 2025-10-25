@@ -15,6 +15,7 @@ const { v4: uuidv4 } = require('uuid');
 const sharp = require('sharp');
 const Joi = require('joi');
 const winston = require('winston');
+const { spawn } = require('child_process');
 
 // Import services
 const ComprehensiveAnalysisService = require('./services/comprehensive-analysis-service');
@@ -299,6 +300,221 @@ app.post('/api/upload-and-analyze', upload.array('images', 5), async (req, res) 
   }
 });
 
+// Web scraping endpoint using Python scraper
+app.post('/api/scrape', async (req, res) => {
+  try {
+    logger.info('Scraping request received', { 
+      url: req.body.url,
+      ip: req.ip 
+    });
+
+    const { url, maxImages = 20 } = req.body;
+
+    if (!url) {
+      return res.status(400).json({
+        error: 'No URL provided',
+        message: 'Please provide a URL to scrape'
+      });
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (error) {
+      return res.status(400).json({
+        error: 'Invalid URL',
+        message: 'Please provide a valid URL'
+      });
+    }
+
+             // Call Python scraper
+             const result = await scrapeImagesWithPython(url, maxImages);
+
+             if (result.images.length === 0) {
+               return res.status(404).json({
+                 error: 'No images found',
+                 message: 'No images could be scraped from the provided URL'
+               });
+             }
+
+             res.json({
+               success: true,
+               message: `Successfully scraped ${result.images.length} images`,
+               images: result.images,
+               propertyDetails: result.propertyDetails || {},
+               count: result.images.length,
+               url: url
+             });
+
+  } catch (error) {
+    logger.error('Scraping error', { error: error.message, stack: error.stack });
+    res.status(500).json({
+      error: 'Scraping failed',
+      message: 'Internal server error during image scraping'
+    });
+  }
+});
+
+// Helper function to call Python scraper
+async function scrapeImagesWithPython(url, maxImages) {
+  return new Promise((resolve, reject) => {
+    const pythonPath = process.env.PYTHON_PATH || 'python3';
+    const scraperPath = path.join(__dirname, '..', 'zillow_image_scraper.py');
+    
+    logger.info('Calling Python scraper', { 
+      pythonPath, 
+      scraperPath, 
+      url, 
+      maxImages 
+    });
+
+    const pythonProcess = spawn(pythonPath, [scraperPath, url, '--download'], {
+      cwd: path.join(__dirname, '..'),
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+             pythonProcess.on('close', (code) => {
+               if (code === 0) {
+                 try {
+                   // Parse the output to extract image URLs and property details
+                   const { imageUrls, propertyDetails } = parseScraperOutput(stdout);
+                   const processedImages = imageUrls.map((url, index) => ({
+                     filename: `scraped_image_${index + 1}.jpg`,
+                     url: url,
+                     index: index
+                   }));
+                   
+                   logger.info('Python scraper completed successfully', { 
+                     imageCount: processedImages.length,
+                     propertyDetails: propertyDetails,
+                     stdout: stdout.substring(0, 500) // Log first 500 chars of output
+                   });
+                   resolve({ images: processedImages, propertyDetails });
+                 } catch (error) {
+                   logger.error('Error parsing scraper output', { error: error.message, stdout: stdout });
+                   reject(new Error('Failed to parse scraper output'));
+                 }
+               } else {
+                 logger.error('Python scraper failed', { 
+                   code, 
+                   stderr: stderr.trim() 
+                 });
+                 reject(new Error(`Python scraper failed with code ${code}: ${stderr.trim()}`));
+               }
+             });
+
+    pythonProcess.on('error', (error) => {
+      logger.error('Python scraper process error', { error: error.message });
+      reject(new Error(`Failed to start Python scraper: ${error.message}`));
+    });
+
+    // Set timeout
+    setTimeout(() => {
+      pythonProcess.kill();
+      reject(new Error('Python scraper timeout'));
+    }, 60000); // 60 second timeout
+  });
+}
+
+// Helper function to parse scraper output
+function parseScraperOutput(output) {
+  const imageUrls = [];
+  const propertyDetails = {};
+  const lines = output.split('\n');
+  
+  let inPropertyDetails = false;
+  
+  for (const line of lines) {
+    // Look for lines that contain image URLs
+    if (line.includes('https://photos.zillowstatic.com/')) {
+      const urlMatch = line.match(/https:\/\/photos\.zillowstatic\.com\/[^\s]+/);
+      if (urlMatch) {
+        imageUrls.push(urlMatch[0]);
+      }
+    }
+    
+    // Look for property details section
+    if (line.includes('Property Details:')) {
+      inPropertyDetails = true;
+      continue;
+    }
+    
+    if (inPropertyDetails && line.includes(':')) {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const key = line.substring(0, colonIndex).trim();
+        const value = line.substring(colonIndex + 1).trim();
+        
+        if (key && value) {
+          switch (key.toLowerCase()) {
+            case 'address':
+              propertyDetails.address = value;
+              break;
+            case 'city':
+              propertyDetails.city = value;
+              break;
+            case 'state':
+              propertyDetails.state = value;
+              break;
+            case 'zip':
+              propertyDetails.zipCode = value;
+              break;
+            case 'type':
+              propertyDetails.propertyType = value;
+              break;
+            case 'bedrooms':
+              propertyDetails.bedrooms = value;
+              break;
+            case 'bathrooms':
+              propertyDetails.bathrooms = value;
+              break;
+            case 'square feet':
+              propertyDetails.squareFeet = value;
+              break;
+            case 'year built':
+              propertyDetails.yearBuilt = value;
+              break;
+            case 'lot size':
+              propertyDetails.lotSize = value;
+              break;
+            case 'price':
+              propertyDetails.price = value;
+              break;
+          }
+        }
+      }
+    }
+  }
+  
+  // If no property details were found, provide defaults
+  if (Object.keys(propertyDetails).length === 0) {
+    propertyDetails.address = 'Property from URL';
+    propertyDetails.city = 'Unknown';
+    propertyDetails.state = 'Unknown';
+    propertyDetails.zipCode = '00000';
+    propertyDetails.propertyType = 'Property';
+    propertyDetails.bedrooms = 'N/A';
+    propertyDetails.bathrooms = 'N/A';
+    propertyDetails.squareFeet = 'N/A';
+    propertyDetails.yearBuilt = 'N/A';
+    propertyDetails.lotSize = 'N/A';
+    propertyDetails.price = 'N/A';
+  }
+  
+  return { imageUrls, propertyDetails };
+}
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   logger.error('Unhandled error', { 
@@ -345,6 +561,7 @@ app.listen(PORT, () => {
   logger.info(`   POST /api/upload - Upload images`);
   logger.info(`   POST /api/analyze - Analyze images`);
   logger.info(`   POST /api/upload-and-analyze - Upload and analyze in one request`);
+  logger.info(`   POST /api/scrape - Scrape images from URLs using Python scraper`);
 });
 
 // Graceful shutdown

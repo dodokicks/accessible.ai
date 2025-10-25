@@ -1049,9 +1049,26 @@
             try {
                 statusDiv.innerHTML = `<span style="color: blue;">🔄 Scraping up to ${maxImages} images...</span>`;
                 
-                const scrapedImages = await imageScraper.scrapeAndPrepareImages(url, maxImages);
+                // Call the Express backend API instead of browser-based scraping
+                const response = await fetch(`${API_BASE}/api/scrape`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        maxImages: maxImages
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Scraping failed');
+                }
+
+                const result = await response.json();
                 
-                if (scrapedImages.length === 0) {
+                if (result.images.length === 0) {
                     statusDiv.innerHTML = `
                         <span style="color: orange;">⚠️ No images found on this page</span>
                         <br><small style="color: #666;">
@@ -1061,20 +1078,46 @@
                     return;
                 }
 
-                // Add scraped images to preview
-                scrapedImages.forEach(img => {
-                    addImageToPreview(img.filename, `data:image/jpeg;base64,${img.base64}`);
-                });
+                // Convert image URLs to base64 and add to preview
+                for (const img of result.images) {
+                    try {
+                        const base64 = await imageUrlToBase64(img.url);
+                        addImageToPreview(img.filename, `data:image/jpeg;base64,${base64}`);
+                    } catch (error) {
+                        console.warn(`Failed to load image ${img.url}:`, error);
+                    }
+                }
 
                 // Populate property details with scraped information
-                populateScrapedPropertyDetails(url);
+                populateScrapedPropertyDetails(url, result.propertyDetails);
 
-                statusDiv.innerHTML = `<span style="color: green;">✅ Found and added ${scrapedImages.length} images</span>`;
+                statusDiv.innerHTML = `<span style="color: green;">✅ Found and added ${result.images.length} images</span>`;
                 document.getElementById('urlInput').value = '';
 
             } catch (error) {
                 console.error('Scraping error:', error);
                 statusDiv.innerHTML = `<span style="color: red;">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        // Helper function to convert image URL to base64
+        async function imageUrlToBase64(imageUrl) {
+            try {
+                const response = await fetch(imageUrl);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.status}`);
+                }
+                
+                const blob = await response.blob();
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (error) {
+                console.error('Error converting image to base64:', error);
+                throw error;
             }
         }
 
@@ -1196,74 +1239,72 @@
             document.getElementById('propertyDisplay').style.display = 'none';
         }
 
-        function populateScrapedPropertyDetails(url) {
-            let addressLine = "Property from URL";
-            let city = "Unknown";
-            let state = "Unknown";
-            let zipCode = "Unknown";
-            let propertyType = "Property";
-            let bedrooms = "N/A";
-            let bathrooms = "N/A";
-            let squareFeet = "N/A";
+        function populateScrapedPropertyDetails(url, propertyDetails = {}) {
+            // Use scraped property details if available, otherwise fallback to URL parsing
+            let addressLine = propertyDetails.address || "Property from URL";
+            let city = propertyDetails.city || "Unknown";
+            let state = propertyDetails.state || "Unknown";
+            let zipCode = propertyDetails.zipCode || "00000";
+            let propertyType = propertyDetails.propertyType || "Property";
+            let bedrooms = propertyDetails.bedrooms || "N/A";
+            let bathrooms = propertyDetails.bathrooms || "N/A";
+            let squareFeet = propertyDetails.squareFeet || "N/A";
+            let yearBuilt = propertyDetails.yearBuilt || "N/A";
+            let lotSize = propertyDetails.lotSize || "N/A";
+            let price = propertyDetails.price || "N/A";
             
-            // Extract property information from Zillow URL
-            if (url.includes('zillow.com/homedetails/')) {
-                try {
-                    // Parse Zillow URL format: /homedetails/1360-Tanaka-Dr-San-Jose-CA-95131/19561522_zpid/
-                    const urlParts = url.split('/homedetails/')[1];
-                    if (urlParts) {
-                        const addressPart = urlParts.split('/')[0];
-                        // Convert URL format to readable address
-                        // 1360-Tanaka-Dr-San-Jose-CA-95131 -> 1360 Tanaka Dr, San Jose, CA 95131
-                        const addressComponents = addressPart.split('-');
-                        
-                        // Extract street number and name
-                        let streetNumber = addressComponents[0];
-                        let streetName = addressComponents.slice(1, -4).join(' ');
-                        
-                        // Extract city, state, zip
-                        const lastFourParts = addressComponents.slice(-4);
-                        city = lastFourParts[0] + ' ' + lastFourParts[1]; // San Jose
-                        state = lastFourParts[2]; // CA
-                        zipCode = lastFourParts[3]; // 95131
-                        
-                        addressLine = `${streetNumber} ${streetName}`;
-                        propertyType = "Single Family Residence";
-                        
-                        // For the specific URL you provided, we know these details
-                        if (url.includes('1360-Tanaka-Dr-San-Jose-CA-95131')) {
-                            addressLine = "1360 Tanaka Dr";
-                            city = "San Jose";
-                            state = "CA";
-                            zipCode = "95131";
-                            bedrooms = "4";
-                            bathrooms = "3";
-                            squareFeet = "2,530";
-                            propertyType = "Single Family Residence";
+            // If no property details were scraped, try to extract from URL
+            if (!propertyDetails.address || propertyDetails.address === "Unknown Address") {
+                if (url.includes('zillow.com/homedetails/')) {
+                    try {
+                        // Parse Zillow URL format: /homedetails/1360-Tanaka-Dr-San-Jose-CA-95131/19561522_zpid/
+                        const urlParts = url.split('/homedetails/')[1];
+                        if (urlParts) {
+                            const addressPart = urlParts.split('/')[0];
+                            // Convert URL format to readable address
+                            // 1360-Tanaka-Dr-San-Jose-CA-95131 -> 1360 Tanaka Dr, San Jose, CA 95131
+                            const addressComponents = addressPart.split('-');
+                            
+                            if (addressComponents.length >= 4) {
+                                // Extract street number and name
+                                const streetNumber = addressComponents[0];
+                                const streetName = addressComponents.slice(1, -3).join(' ');
+                                
+                                // Extract city, state, zip
+                                const lastThree = addressComponents.slice(-3);
+                                if (lastThree.length >= 3) {
+                                    city = lastThree[0];
+                                    state = lastThree[1];
+                                    zipCode = lastThree[2];
+                                    
+                                    addressLine = `${streetNumber} ${streetName}`;
+                                    propertyType = "Single Family Residence";
+                                }
+                            }
                         }
+                    } catch (error) {
+                        console.error('Error parsing Zillow URL:', error);
+                        // Fallback to generic info
+                        addressLine = "Zillow Property";
+                        city = "From Zillow";
+                        state = "CA";
+                        zipCode = "00000";
+                        propertyType = "Zillow Listing";
                     }
-                } catch (error) {
-                    console.error('Error parsing Zillow URL:', error);
-                    // Fallback to generic Zillow info
-                    addressLine = "Zillow Property";
-                    city = "From Zillow";
+                } else if (url.includes('realtor.com')) {
+                    addressLine = "Realtor.com Property";
+                    city = "From Realtor";
                     state = "CA";
                     zipCode = "00000";
-                    propertyType = "Zillow Listing";
+                    propertyType = "Realtor Listing";
+                } else {
+                    // Generic property info
+                    addressLine = "Scraped Property";
+                    city = "From URL";
+                    state = "CA";
+                    zipCode = "00000";
+                    propertyType = "Web Listing";
                 }
-            } else if (url.includes('realtor.com')) {
-                addressLine = "Realtor.com Property";
-                city = "From Realtor";
-                state = "CA";
-                zipCode = "00000";
-                propertyType = "Realtor Listing";
-            } else {
-                // Generic property info
-                addressLine = "Scraped Property";
-                city = "From URL";
-                state = "CA";
-                zipCode = "00000";
-                propertyType = "Web Listing";
             }
             
             // Update the display
@@ -1271,7 +1312,30 @@
             const propertyInfo = document.getElementById('propertyInfo');
             
             addressText.textContent = `${addressLine}, ${city}, ${state} ${zipCode}`;
-            propertyInfo.textContent = `${propertyType} • ${bedrooms} bed • ${bathrooms} bath • ${squareFeet} sq ft`;
+            
+            // Format property info with available details
+            let propertyInfoText = propertyType;
+            if (bedrooms !== "N/A") propertyInfoText += ` • ${bedrooms} bed`;
+            if (bathrooms !== "N/A") propertyInfoText += ` • ${bathrooms} bath`;
+            if (squareFeet !== "N/A") propertyInfoText += ` • ${parseInt(squareFeet).toLocaleString()} sq ft`;
+            if (yearBuilt !== "N/A") propertyInfoText += ` • Built ${yearBuilt}`;
+            if (price !== "N/A") propertyInfoText += ` • ${price}`;
+            
+            propertyInfo.textContent = propertyInfoText;
+            
+            // Also update the form fields if they exist
+            if (document.getElementById('addressLine')) {
+                document.getElementById('addressLine').value = addressLine;
+                document.getElementById('city').value = city;
+                document.getElementById('state').value = state;
+                document.getElementById('zipCode').value = zipCode;
+                document.getElementById('propertyType').value = propertyType;
+                document.getElementById('bedrooms').value = bedrooms;
+                document.getElementById('bathrooms').value = bathrooms;
+                document.getElementById('squareFeet').value = squareFeet;
+                document.getElementById('yearBuilt').value = yearBuilt;
+                document.getElementById('lotSize').value = lotSize;
+            }
         }
 
         function resetImages() {

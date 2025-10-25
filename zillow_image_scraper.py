@@ -257,6 +257,61 @@ def is_image_url(url):
     return False
 
 
+def is_property_image(url):
+    """
+    Check if a URL points to a property listing image (not amenities, tracking pixels, etc.).
+    
+    Args:
+        url (str): URL to check
+        
+    Returns:
+        bool: True if URL appears to be a property listing image
+    """
+    if not url or not isinstance(url, str):
+        return False
+    
+    url_lower = url.lower()
+    
+    # Filter out non-property images
+    exclude_patterns = [
+        r'noScript\.gif',
+        r'tracking',
+        r'analytics',
+        r'pixel',
+        r'beacon',
+        r'logo',
+        r'icon',
+        r'favicon',
+        r'amenities',
+        r'common.*area',
+        r'lobby',
+        r'pool',
+        r'gym',
+        r'fitness'
+    ]
+    
+    for pattern in exclude_patterns:
+        if re.search(pattern, url_lower):
+            return False
+    
+    # Only include Zillow property photos
+    if 'photos.zillowstatic.com/fp/' in url_lower:
+        # Check for property photo patterns
+        property_patterns = [
+            r'-cc_ft_\d+\.(jpg|webp|png)',
+            r'-o_a\.(jpg|webp|png)',
+            r'-r_b\.(jpg|webp|png)',
+            r'-p_d\.(jpg|webp|png)',
+            r'-p_i\.(jpg|webp|png)'
+        ]
+        
+        for pattern in property_patterns:
+            if re.search(pattern, url_lower):
+                return True
+    
+    return False
+
+
 def download_image(url, folder_path, filename):
     """
     Download an image from URL to the specified folder.
@@ -519,17 +574,26 @@ def extract_images_from_html(html_content):
                     data_src = 'https://www.zillow.com' + data_src
                 image_urls.append(data_src)
         
-        # Search for Zillow photo URLs in the raw HTML content
-        zillow_photo_pattern = r'https://photos\.zillowstatic\.com/fp/([a-f0-9]{32})-cc_ft_\d+\.(jpg|webp|png)'
-        found_matches = re.findall(zillow_photo_pattern, html_content)
-        for match in found_matches:
-            base_id, extension = match
-            # Try to get the highest resolution version
-            full_url = f"https://photos.zillowstatic.com/fp/{base_id}-cc_ft_1536.{extension}"
-            image_urls.append(full_url)
+        # Search for Zillow photo URLs in the raw HTML content - focus on property photos
+        zillow_photo_patterns = [
+            r'https://photos\.zillowstatic\.com/fp/([a-f0-9]{32})-cc_ft_\d+\.(jpg|webp|png)',
+            r'https://photos\.zillowstatic\.com/fp/([a-f0-9]{32})-o_a\.(jpg|webp|png)',
+            r'https://photos\.zillowstatic\.com/fp/([a-f0-9]{32})-r_b\.(jpg|webp|png)',
+            r'https://photos\.zillowstatic\.com/fp/([a-f0-9]{32})-p_d\.(jpg|webp|png)',
+            r'https://photos\.zillowstatic\.com/fp/([a-f0-9]{32})-p_i\.(jpg|webp|png)'
+        ]
         
-        # Remove duplicates and filter to get only unique images (highest resolution)
-        unique_images = filter_unique_images(image_urls)
+        for pattern in zillow_photo_patterns:
+            found_matches = re.findall(pattern, html_content)
+            for match in found_matches:
+                base_id, extension = match
+                # Try to get the highest resolution version
+                full_url = f"https://photos.zillowstatic.com/fp/{base_id}-cc_ft_1536.{extension}"
+                image_urls.append(full_url)
+        
+        # Filter to only property images and remove duplicates
+        property_images = [url for url in image_urls if is_property_image(url)]
+        unique_images = filter_unique_images(property_images)
         return unique_images
         
     except Exception as e:
@@ -632,6 +696,261 @@ def print_image_urls(image_urls):
     print("-" * 50)
 
 
+def extract_property_details(html_content, url):
+    """
+    Extract property details from the HTML content.
+    
+    Args:
+        html_content (str): HTML content of the page
+        url (str): The original URL
+        
+    Returns:
+        dict: Property details including address, bedrooms, bathrooms, etc.
+    """
+    try:
+        soup = BeautifulSoup(html_content, 'html.parser')
+        details = {
+            'address': 'Unknown Address',
+            'city': 'Unknown',
+            'state': 'Unknown',
+            'zipCode': '00000',
+            'propertyType': 'Property',
+            'bedrooms': 'N/A',
+            'bathrooms': 'N/A',
+            'squareFeet': 'N/A',
+            'yearBuilt': 'N/A',
+            'lotSize': 'N/A',
+            'price': 'N/A'
+        }
+        
+        # Try to extract from JSON data first
+        json_data = extract_json_from_page(html_content)
+        if json_data:
+            # Look for property details in JSON
+            def search_property_details(data, path=""):
+                if isinstance(data, dict):
+                    for key, value in data.items():
+                        if key.lower() in ['property', 'listing', 'home', 'details']:
+                            if isinstance(value, dict):
+                                # Extract common property fields
+                                if 'address' in value and value['address']:
+                                    details['address'] = value['address']
+                                if 'city' in value and value['city']:
+                                    details['city'] = value['city']
+                                if 'state' in value and value['state']:
+                                    details['state'] = value['state']
+                                if 'zipCode' in value and value['zipCode']:
+                                    details['zipCode'] = value['zipCode']
+                                if 'bedrooms' in value and value['bedrooms']:
+                                    details['bedrooms'] = str(value['bedrooms'])
+                                if 'bathrooms' in value and value['bathrooms']:
+                                    details['bathrooms'] = str(value['bathrooms'])
+                                if 'squareFeet' in value and value['squareFeet']:
+                                    details['squareFeet'] = str(value['squareFeet'])
+                                if 'yearBuilt' in value and value['yearBuilt']:
+                                    details['yearBuilt'] = str(value['yearBuilt'])
+                                if 'lotSize' in value and value['lotSize']:
+                                    details['lotSize'] = str(value['lotSize'])
+                                if 'price' in value and value['price']:
+                                    details['price'] = str(value['price'])
+                        else:
+                            search_property_details(value, f"{path}.{key}")
+                elif isinstance(data, list):
+                    for i, item in enumerate(data):
+                        search_property_details(item, f"{path}[{i}]")
+            
+            search_property_details(json_data)
+        
+        # Try to extract from HTML elements
+        # Look for address in various selectors
+        address_selectors = [
+            'h1[data-testid="property-address"]',
+            '.property-address',
+            '.listing-address',
+            'h1',
+            '.address'
+        ]
+        
+        for selector in address_selectors:
+            element = soup.select_one(selector)
+            if element and element.get_text(strip=True):
+                address_text = element.get_text(strip=True)
+                if 'address' in address_text.lower() or any(char.isdigit() for char in address_text):
+                    details['address'] = address_text
+                    break
+        
+        # Look for property details in structured data
+        structured_data = soup.find_all('script', type='application/ld+json')
+        for script in structured_data:
+            try:
+                data = json.loads(script.string)
+                if isinstance(data, dict) and data.get('@type') == 'RealEstateAgent':
+                    # Extract property details from structured data
+                    if 'address' in data:
+                        addr = data['address']
+                        if isinstance(addr, dict):
+                            details['address'] = addr.get('streetAddress', details['address'])
+                            details['city'] = addr.get('addressLocality', details['city'])
+                            details['state'] = addr.get('addressRegion', details['state'])
+                            details['zipCode'] = addr.get('postalCode', details['zipCode'])
+            except:
+                continue
+        
+        # Try to extract from URL if it's a Zillow URL
+        if 'zillow.com' in url:
+            try:
+                # Parse Zillow URL format: /homedetails/1360-Tanaka-Dr-San-Jose-CA-95131/19561522_zpid/
+                if '/homedetails/' in url:
+                    url_parts = url.split('/homedetails/')[1]
+                    if url_parts:
+                        address_part = url_parts.split('/')[0]
+                        # Convert URL format to readable address
+                        # 1360-Tanaka-Dr-San-Jose-CA-95131 -> 1360 Tanaka Dr, San Jose, CA 95131
+                        address_components = address_part.split('-')
+                        
+                        if len(address_components) >= 4:
+                            # Extract street number and name
+                            street_number = address_components[0]
+                            street_name = address_components[1:-3]  # Everything except last 3 parts
+                            
+                            # Extract city, state, zip
+                            last_three = address_components[-3:]
+                            if len(last_three) >= 3:
+                                city = last_three[0]
+                                state = last_three[1]
+                                zip_code = last_three[2]
+                                
+                                details['address'] = f"{street_number} {' '.join(street_name)}"
+                                details['city'] = city
+                                details['state'] = state
+                                details['zipCode'] = zip_code
+                                details['propertyType'] = "Single Family Residence"
+                
+                # Parse apartment listings: /apartments/santa-clara-ca/domicilio/5XjVpN/
+                elif '/apartments/' in url:
+                    url_parts = url.split('/apartments/')[1]
+                    if url_parts:
+                        parts = url_parts.split('/')
+                        if len(parts) >= 3:
+                            city_state = parts[0]  # santa-clara-ca
+                            complex_name = parts[1]  # domicilio
+                            
+                            # Parse city and state
+                            city_state_parts = city_state.split('-')
+                            if len(city_state_parts) >= 2:
+                                # Join all parts except the last one (state) to get the full city name
+                                city_parts = city_state_parts[:-1]
+                                city = ' '.join(city_parts).title()  # Santa Clara
+                                state = city_state_parts[-1].upper()  # CA
+                                
+                                details['address'] = complex_name.replace('-', ' ').title()  # Domicilio
+                                details['city'] = city
+                                details['state'] = state
+                                # Set a default ZIP for Santa Clara, CA (common ZIP codes)
+                                if city.lower() == 'santa clara':
+                                    details['zipCode'] = "95050"  # Common Santa Clara ZIP
+                                else:
+                                    details['zipCode'] = "00000"  # Unknown for other cities
+                                details['propertyType'] = "Apartment Complex"
+                                details['bedrooms'] = "Multiple"
+                                details['bathrooms'] = "Multiple"
+                                details['squareFeet'] = "Various"
+                                
+            except Exception as e:
+                print(f"Error parsing Zillow URL: {e}")
+        
+        # Look for ZIP code in the HTML content
+        import re
+        zip_patterns = [
+            r'ZIP[:\s]*(\d{5})',  # ZIP: 12345
+            r'Postal[:\s]*(\d{5})',  # Postal: 12345
+            r'\b(\d{5})\b',  # 5-digit ZIP code (but validate it's realistic)
+        ]
+        
+        for pattern in zip_patterns:
+            zip_matches = re.findall(pattern, html_content)
+            if zip_matches:
+                # Take the first valid ZIP code found
+                for zip_match in zip_matches:
+                    if len(zip_match) == 5 and zip_match.isdigit():
+                        # Validate ZIP code range (US ZIP codes are 00501-99950)
+                        zip_num = int(zip_match)
+                        if 501 <= zip_num <= 99950:
+                            details['zipCode'] = zip_match
+                            break
+                if details['zipCode'] != '00000':
+                    break
+        
+        # Look for property stats in the HTML
+        stats_selectors = [
+            '[data-testid="bed-bath-beyond"]',
+            '.property-stats',
+            '.listing-stats',
+            '.home-summary',
+            '.property-details',
+            '.listing-details'
+        ]
+        
+        for selector in stats_selectors:
+            element = soup.select_one(selector)
+            if element:
+                text = element.get_text()
+                
+                # Look for bedroom count
+                bed_match = re.search(r'(\d+)\s*(?:bed|br|bedroom)', text, re.IGNORECASE)
+                if bed_match:
+                    details['bedrooms'] = bed_match.group(1)
+                
+                # Look for bathroom count
+                bath_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)', text, re.IGNORECASE)
+                if bath_match:
+                    details['bathrooms'] = bath_match.group(1)
+                
+                # Look for square footage
+                sqft_match = re.search(r'(\d+(?:,\d+)*)\s*(?:sq\s*ft|square\s*feet)', text, re.IGNORECASE)
+                if sqft_match:
+                    details['squareFeet'] = sqft_match.group(1).replace(',', '')
+                
+                # Look for year built
+                year_match = re.search(r'(?:built|year)[:\s]*(\d{4})', text, re.IGNORECASE)
+                if year_match:
+                    details['yearBuilt'] = year_match.group(1)
+                
+                # Look for price
+                price_match = re.search(r'\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', text)
+                if price_match:
+                    details['price'] = f"${price_match.group(1)}"
+        
+        # If no valid ZIP code was found or found an invalid one, use city-specific defaults
+        if details['zipCode'] == '00000' or details['zipCode'] == 'Unknown' or details['zipCode'] == '10000':
+            if details['city'].lower() == 'santa clara':
+                details['zipCode'] = '95050'  # Santa Clara, CA ZIP
+            elif details['city'].lower() == 'san jose':
+                details['zipCode'] = '95110'  # San Jose, CA ZIP
+            elif details['city'].lower() == 'san francisco':
+                details['zipCode'] = '94102'  # San Francisco, CA ZIP
+            else:
+                details['zipCode'] = '00000'  # Unknown
+        
+        return details
+        
+    except Exception as e:
+        print(f"Error extracting property details: {e}")
+        return {
+            'address': 'Property from URL',
+            'city': 'Unknown',
+            'state': 'Unknown',
+            'zipCode': '00000',
+            'propertyType': 'Property',
+            'bedrooms': 'N/A',
+            'bathrooms': 'N/A',
+            'squareFeet': 'N/A',
+            'yearBuilt': 'N/A',
+            'lotSize': 'N/A',
+            'price': 'N/A'
+        }
+
+
 def main():
     """
     Main function to handle command-line arguments and orchestrate the scraping process.
@@ -687,27 +1006,41 @@ Examples:
         print("Failed to fetch the page. Please check the URL and try again.")
         sys.exit(1)
     
-    # Extract JSON data
-    print("Extracting image data from page...")
-    json_data = extract_json_from_page(html_content)
+    # Extract property details
+    print("Extracting property details...")
+    property_details = extract_property_details(html_content, args.url)
     
-    image_urls = []
-    if json_data:
-        # Extract image URLs from JSON
-        print("Parsing image URLs from JSON...")
-        image_urls = extract_image_urls(json_data)
+    # Extract images from HTML directly (more reliable for property photos)
+    print("Extracting property images from page...")
+    image_urls = extract_images_from_html(html_content)
     
-    # If no images found in JSON, try extracting from HTML directly
+    # If no images found in HTML, try JSON as fallback
     if not image_urls:
-        print("No images found in JSON, trying to extract from HTML...")
-        image_urls = extract_images_from_html(html_content)
-    else:
-        # Filter JSON results to get unique images only
-        print("Filtering JSON results to get unique images...")
-        image_urls = filter_unique_images(image_urls)
+        print("No images found in HTML, trying JSON extraction...")
+        json_data = extract_json_from_page(html_content)
+        if json_data:
+            print("Parsing image URLs from JSON...")
+            image_urls = extract_image_urls(json_data)
+            if image_urls:
+                print("Filtering JSON results to get unique images...")
+                image_urls = filter_unique_images(image_urls)
     
     # Print results
     print_image_urls(image_urls)
+    
+    # Print property details
+    print(f"\nProperty Details:")
+    print(f"Address: {property_details['address']}")
+    print(f"City: {property_details['city']}")
+    print(f"State: {property_details['state']}")
+    print(f"ZIP: {property_details['zipCode']}")
+    print(f"Type: {property_details['propertyType']}")
+    print(f"Bedrooms: {property_details['bedrooms']}")
+    print(f"Bathrooms: {property_details['bathrooms']}")
+    print(f"Square Feet: {property_details['squareFeet']}")
+    print(f"Year Built: {property_details['yearBuilt']}")
+    print(f"Lot Size: {property_details['lotSize']}")
+    print(f"Price: {property_details['price']}")
     
     # Generate unique listing ID from URL
     listing_id = generate_listing_id(args.url)
