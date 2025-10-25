@@ -17,7 +17,7 @@ const Joi = require('joi');
 const winston = require('winston');
 
 // Import services
-const OpenAIService = require('./services/openai-service');
+const ComprehensiveAnalysisService = require('./services/comprehensive-analysis-service');
 const ImageService = require('./services/image-service');
 const ValidationService = require('./services/validation-service');
 
@@ -107,7 +107,7 @@ const upload = multer({
 });
 
 // Initialize services
-const openaiService = new OpenAIService();
+const comprehensiveAnalysisService = new ComprehensiveAnalysisService();
 const imageService = new ImageService();
 const validationService = new ValidationService();
 
@@ -217,63 +217,12 @@ app.post('/api/analyze', async (req, res) => {
       });
     }
 
-    // Process each image with OpenAI Vision
-    const analysisResults = [];
-    let totalScore = 0;
-    let positiveFeatures = [];
-    let barriers = [];
-    let recommendations = [];
-
-    for (const image of images) {
-      try {
-        const result = await openaiService.analyzeAccessibility(image.base64, image.filename);
-        analysisResults.push(result);
-        
-        // Aggregate results
-        totalScore += result.score || 0;
-        positiveFeatures.push(...(result.positive_features || []));
-        barriers.push(...(result.barriers || []));
-        recommendations.push(...(result.recommendations || []));
-      } catch (error) {
-        logger.error('Analysis error for image', { 
-          filename: image.filename, 
-          error: error.message 
-        });
-        analysisResults.push({
-          filename: image.filename,
-          error: 'Analysis failed',
-          score: 0
-        });
-      }
-    }
-
-    // Calculate overall score
-    const averageScore = analysisResults.length > 0 
-      ? Math.round(totalScore / analysisResults.length) 
-      : 0;
-
-    // Remove duplicates from aggregated results
-    const uniquePositiveFeatures = [...new Set(positiveFeatures)];
-    const uniqueBarriers = [...new Set(barriers)];
-    const uniqueRecommendations = [...new Set(recommendations)];
-
-    const finalResult = {
-      success: true,
-      analysis: {
-        overall_score: averageScore,
-        analyzed_images: analysisResults.length,
-        positive_features: uniquePositiveFeatures,
-        barriers: uniqueBarriers,
-        recommendations: uniqueRecommendations,
-        detailed_results: analysisResults
-      },
-      timestamp: new Date().toISOString(),
-      processing_time: Date.now() - req.startTime
-    };
+    // Use comprehensive analysis service (Rekognition + Claude)
+    const finalResult = await comprehensiveAnalysisService.analyzeImages(images);
 
     logger.info('Analysis completed', { 
-      score: averageScore, 
-      imageCount: analysisResults.length 
+      score: finalResult.analysis.overall_score, 
+      imageCount: finalResult.analysis.analyzed_images 
     });
 
     res.json(finalResult);
@@ -336,51 +285,8 @@ app.post('/api/upload-and-analyze', upload.array('images', 5), async (req, res) 
       });
     }
 
-    // Analyze images
-    const analysisResults = [];
-    let totalScore = 0;
-    let positiveFeatures = [];
-    let barriers = [];
-    let recommendations = [];
-
-    for (const image of processedImages) {
-      try {
-        const result = await openaiService.analyzeAccessibility(image.base64, image.filename);
-        analysisResults.push(result);
-        
-        totalScore += result.score || 0;
-        positiveFeatures.push(...(result.positive_features || []));
-        barriers.push(...(result.barriers || []));
-        recommendations.push(...(result.recommendations || []));
-      } catch (error) {
-        logger.error('Analysis error', { 
-          filename: image.filename, 
-          error: error.message 
-        });
-        analysisResults.push({
-          filename: image.filename,
-          error: 'Analysis failed',
-          score: 0
-        });
-      }
-    }
-
-    const averageScore = analysisResults.length > 0 
-      ? Math.round(totalScore / analysisResults.length) 
-      : 0;
-
-    const finalResult = {
-      success: true,
-      analysis: {
-        overall_score: averageScore,
-        analyzed_images: analysisResults.length,
-        positive_features: [...new Set(positiveFeatures)],
-        barriers: [...new Set(barriers)],
-        recommendations: [...new Set(recommendations)],
-        detailed_results: analysisResults
-      },
-      timestamp: new Date().toISOString()
-    };
+    // Use comprehensive analysis service (Rekognition + Claude)
+    const finalResult = await comprehensiveAnalysisService.analyzeImages(processedImages);
 
     res.json(finalResult);
 

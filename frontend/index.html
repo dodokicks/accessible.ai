@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accessibility Checker - Home Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .input-card {
+            border: 2px dashed #e0e0e0;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .input-card:hover {
+            border-color: #4facfe;
+            background: #f8f9ff;
+        }
+
+        .input-card.dragover {
+            border-color: #4facfe;
+            background: #e8f4ff;
+        }
+
+        .input-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+
+        .input-card p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .url-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .preview-section {
+            margin-bottom: 30px;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .preview-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .preview-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255,0,0,0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .results-section {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+
+        .results-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .score-display {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .score-excellent { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .score-good { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .score-fair { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .score-poor { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .result-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .result-list {
+            list-style: none;
+        }
+
+        .result-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            color: #666;
+        }
+
+        .result-list li:last-child {
+            border-bottom: none;
+        }
+
+        .positive { color: #4CAF50; }
+        .negative { color: #f44336; }
+        .neutral { color: #2196F3; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #c62828;
+        }
+
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #2e7d32;
+        }
+
+        @media (max-width: 768px) {
+            .input-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏠 Accessibility Checker</h1>
+            <p>Analyze homes for accessibility features and barriers</p>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <!-- File Upload Card -->
+                <div class="input-card" id="fileCard">
+                    <h3>📸 Upload Images</h3>
+                    <p>Drag and drop images or click to browse</p>
+                    <input type="file" id="fileInput" class="file-input" multiple accept="image/*">
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                        Choose Images
+                    </button>
+                </div>
+
+                <!-- URL Input Card -->
+                <div class="input-card">
+                    <h3>🌐 From Web Scraping</h3>
+                    <p>Enter URLs to scrape images from</p>
+                    <input type="url" id="urlInput" class="url-input" placeholder="https://www.zillow.com/homedetails/...">
+                    <div style="display: flex; gap: 10px; margin: 10px 0;">
+                        <input type="number" id="maxImages" class="url-input" placeholder="Max images" value="20" min="1" max="50" style="flex: 1;">
+                        <button class="upload-btn" onclick="scrapeImages()">Scrape Images</button>
+                    </div>
+                    <div style="margin: 10px 0; padding: 10px; background: #f8f9ff; border-radius: 8px; font-size: 0.9rem;">
+                        <strong>💡 Pro Tips:</strong><br>
+                        • Try Zillow, Realtor.com, or property sites<br>
+                        • If scraping fails, try manual image upload<br>
+                        • Some sites block automated scraping
+                    </div>
+                    <div id="scrapingStatus" style="margin-top: 10px; font-size: 0.9rem; color: #666;"></div>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div class="preview-section" id="previewSection" style="display: none;">
+                <h3>📋 Selected Images</h3>
+                <div class="preview-grid" id="previewGrid"></div>
+            </div>
+
+            <!-- Analyze Button -->
+            <button class="analyze-btn" id="analyzeBtn" onclick="analyzeImages()" disabled>
+                🔍 Analyze Accessibility
+            </button>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection" style="display: none;">
+                <h2>📊 Analysis Results</h2>
+                <div id="resultsContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="scraper.js"></script>
+    <script>
+        let selectedImages = [];
+        const API_BASE = 'http://localhost:3000';
+        const imageScraper = new ImageScraper();
+
+        // File upload handling
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        document.getElementById('fileCard').addEventListener('dragover', handleDragOver);
+        document.getElementById('fileCard').addEventListener('drop', handleDrop);
+        document.getElementById('fileCard').addEventListener('dragleave', handleDragLeave);
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            processFiles(files);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('dragover');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('dragover');
+            const files = Array.from(event.dataTransfer.files);
+            processFiles(files);
+        }
+
+        function processFiles(files) {
+            files.forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        addImageToPreview(file.name, e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        async function scrapeImages() {
+            const url = document.getElementById('urlInput').value.trim();
+            const maxImages = parseInt(document.getElementById('maxImages').value) || 20;
+            const statusDiv = document.getElementById('scrapingStatus');
+            
+            if (!url) {
+                statusDiv.innerHTML = '<span style="color: red;">Please enter a URL</span>';
+                return;
+            }
+
+            try {
+                statusDiv.innerHTML = `<span style="color: blue;">🔄 Scraping up to ${maxImages} images...</span>`;
+                
+                const scrapedImages = await imageScraper.scrapeAndPrepareImages(url, maxImages);
+                
+                if (scrapedImages.length === 0) {
+                    statusDiv.innerHTML = `
+                        <span style="color: orange;">⚠️ No images found on this page</span>
+                        <br><small style="color: #666;">
+                            Try: 1) Different URL 2) Manual upload 3) Check if site blocks scraping
+                        </small>
+                    `;
+                    return;
+                }
+
+                // Add scraped images to preview
+                scrapedImages.forEach(img => {
+                    addImageToPreview(img.filename, `data:image/jpeg;base64,${img.base64}`);
+                });
+
+                statusDiv.innerHTML = `<span style="color: green;">✅ Found and added ${scrapedImages.length} images</span>`;
+                document.getElementById('urlInput').value = '';
+
+            } catch (error) {
+                console.error('Scraping error:', error);
+                statusDiv.innerHTML = `<span style="color: red;">❌ Error: ${error.message}</span>`;
+            }
+        }
+
+        function addImageToPreview(filename, dataUrl) {
+            const imageId = Date.now() + Math.random();
+            selectedImages.push({
+                id: imageId,
+                filename: filename,
+                dataUrl: dataUrl
+            });
+
+            updatePreview();
+            updateAnalyzeButton();
+        }
+
+        function updatePreview() {
+            const previewSection = document.getElementById('previewSection');
+            const previewGrid = document.getElementById('previewGrid');
+            
+            if (selectedImages.length > 0) {
+                previewSection.style.display = 'block';
+                previewGrid.innerHTML = selectedImages.map(img => `
+                    <div class="preview-item">
+                        <img src="${img.dataUrl}" alt="${img.filename}">
+                        <button class="remove-btn" onclick="removeImage(${img.id})">×</button>
+                    </div>
+                `).join('');
+            } else {
+                previewSection.style.display = 'none';
+            }
+        }
+
+        function removeImage(imageId) {
+            selectedImages = selectedImages.filter(img => img.id !== imageId);
+            updatePreview();
+            updateAnalyzeButton();
+        }
+
+        function updateAnalyzeButton() {
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = selectedImages.length === 0;
+        }
+
+        async function analyzeImages() {
+            if (selectedImages.length === 0) return;
+
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsContent = document.getElementById('resultsContent');
+
+            // Show loading state
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '🔄 Analyzing...';
+            resultsSection.style.display = 'block';
+            resultsContent.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing ${selectedImages.length} image(s) for accessibility features...</p>
+                </div>
+            `;
+
+            try {
+                // Convert images to base64 for API
+                const imagesForAPI = await Promise.all(selectedImages.map(async (img) => {
+                    let base64;
+                    if (img.dataUrl.startsWith('data:')) {
+                        base64 = img.dataUrl.split(',')[1];
+                    } else {
+                        // For URLs, we need to fetch and convert
+                        const response = await fetch(img.dataUrl);
+                        const blob = await response.blob();
+                        base64 = await blobToBase64(blob);
+                    }
+                    return {
+                        filename: img.filename,
+                        base64: base64
+                    };
+                }));
+
+                // Call the API
+                const response = await fetch(`${API_BASE}/api/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ images: imagesForAPI })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayResults(result.analysis);
+                } else {
+                    console.error('Analysis failed:', result);
+                    throw new Error(result.error || 'Analysis failed');
+                }
+
+            } catch (error) {
+                console.error('Analysis error:', error);
+                resultsContent.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Analysis Failed</h3>
+                        <p>${error.message}</p>
+                        <p>Please check that your Express.js server is running on port 3000.</p>
+                    </div>
+                `;
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = '🔍 Analyze Accessibility';
+            }
+        }
+
+        function displayResults(analysis) {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            const scoreClass = getScoreClass(analysis.overall_score);
+            
+            resultsContent.innerHTML = `
+                <div class="score-display">
+                    <div class="score-circle ${scoreClass}">
+                        ${analysis.overall_score}
+                    </div>
+                    <h3>Accessibility Score: ${analysis.overall_score}/100</h3>
+                    <p>Analyzed ${analysis.analyzed_images} image(s)</p>
+                </div>
+
+                <div class="results-grid">
+                    <div class="result-card">
+                        <h3 class="positive">✅ Positive Features</h3>
+                        <ul class="result-list">
+                            ${analysis.positive_features.map(feature => `<li>${feature}</li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="result-card">
+                        <h3 class="negative">❌ Barriers</h3>
+                        <ul class="result-list">
+                            ${analysis.barriers.map(barrier => `<li>${barrier}</li>`).join('')}
+                        </ul>
+                    </div>
+
+                    <div class="result-card">
+                        <h3 class="neutral">💡 Recommendations</h3>
+                        <ul class="result-list">
+                            ${analysis.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getScoreClass(score) {
+            if (score >= 90) return 'score-excellent';
+            if (score >= 80) return 'score-good';
+            if (score >= 70) return 'score-fair';
+            return 'score-poor';
+        }
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // Check if server is running
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    console.log('✅ Server is running');
+                    const data = await response.json();
+                    console.log('Server status:', data);
+                } else {
+                    console.warn('⚠️ Server responded with error:', response.status);
+                }
+            } catch (error) {
+                console.error('❌ Server is not running:', error);
+                alert('Please start your Express.js server first!\n\nRun: cd express-backend && node server.js');
+            }
+        }
+
+        // Check server status on page load
+        checkServerStatus();
+    </script>
+</body>
+</html>
