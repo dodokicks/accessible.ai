@@ -5,17 +5,26 @@ Coordinates Rekognition and LLM Lambda functions to provide comprehensive assess
 
 import json
 import boto3
-import logging
-import asyncio
+import os
 from typing import Dict, Any, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Configure CloudWatch logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+# Import custom modules
+from utils.structured_logger import get_logger, create_request_context
+from utils.exceptions import (
+    InvalidInputError, LambdaInvocationError, AccessibilityCheckerError,
+    handle_aws_error
+)
+from utils.validation import AnalyzeRequest
+from utils.cache import ConnectionPool, ImageAnalysisCache, PerformanceMonitor
+from utils.batch_processor import RekognitionBatchProcessor
+from utils.streaming_llm import StreamingLLMClient
 
-# Initialize AWS clients
-lambda_client = boto3.client('lambda')
+# Initialize structured logger
+logger = get_logger(__name__)
+
+# Initialize AWS clients with connection pooling
+lambda_client = ConnectionPool.get_client('lambda')
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """

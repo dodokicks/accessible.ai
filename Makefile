@@ -126,6 +126,25 @@ docker-logs:
 	@echo "📋 Showing Docker logs..."
 	docker-compose logs -f
 
+# Performance optimization
+build-layer:
+	@echo "🔨 Building Lambda layer..."
+	./layers/build_layer.sh
+	@echo "✅ Layer built successfully!"
+
+deploy-layer:
+	@echo "🚀 Deploying Lambda layer..."
+	./layers/build_layer.sh --deploy
+	@echo "✅ Layer deployed successfully!"
+
+optimize:
+	@echo "⚡ Running performance optimizations..."
+	@echo "Building layer..."
+	./layers/build_layer.sh
+	@echo "Building SAM application..."
+	sam build
+	@echo "✅ Optimization completed!"
+
 # Development helpers
 check-aws:
 	@echo "🔍 Checking AWS configuration..."
@@ -136,6 +155,31 @@ check-sam:
 	@echo "🔍 Checking SAM CLI..."
 	sam --version
 	@echo "✅ SAM CLI is available!"
+
+# Performance testing
+test-performance:
+	@echo "📊 Running performance tests..."
+	python -c "
+import time
+import asyncio
+import aiohttp
+
+async def test_concurrent_requests():
+    async with aiohttp.ClientSession() as session:
+        start_time = time.time()
+        tasks = [
+            session.post('http://localhost:3000/presigned-url', 
+                        json={'filename': f'test{i}.jpg', 'content_type': 'image/jpeg'})
+            for i in range(10)
+        ]
+        results = await asyncio.gather(*tasks)
+        duration = time.time() - start_time
+        print(f'Processed 10 requests in {duration:.2f}s')
+        print(f'Average response time: {duration/10:.2f}s per request')
+
+asyncio.run(test_concurrent_requests())
+"
+	@echo "✅ Performance test completed!"
 
 # Test specific functions
 test-presigned:

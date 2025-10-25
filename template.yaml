@@ -12,6 +12,11 @@ Globals:
         S3_BUCKET_NAME: !Ref S3Bucket
         AWS_REGION: !Ref AWS::Region
         BEDROCK_MODEL_ID: !Ref BedrockModelId
+        CACHE_TABLE_NAME: !Ref CacheTable
+    Layers:
+      - !Ref DependenciesLayer
+    Tracing:
+      Mode: Active
 
 Parameters:
   S3BucketName:
@@ -25,6 +30,37 @@ Parameters:
     Description: Bedrock model ID for LLM processing
 
 Resources:
+  # Lambda Layer for Dependencies
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub '${AWS::StackName}-dependencies'
+      Description: 'Common dependencies for Accessibility Checker API'
+      ContentUri: layers/python/
+      CompatibleRuntimes:
+        - python3.11
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Retain
+
+  # DynamoDB Cache Table
+  CacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-cache'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: cache_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: cache_key
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
   # S3 Bucket for storing images
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -102,6 +138,7 @@ Resources:
       FunctionName: presigned-url-generator
       CodeUri: lambdas/presigned_url/
       Handler: lambda_function.lambda_handler
+      ReservedConcurrencyLimit: 10
       DeadLetterQueue:
         Type: SQS
         TargetArn: !GetAtt DeadLetterQueue.Arn
@@ -118,6 +155,11 @@ Resources:
               Action:
                 - sqs:SendMessage
               Resource: !GetAtt DeadLetterQueue.Arn
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+              Resource: '*'
       Events:
         PresignedUrlApi:
           Type: Api
@@ -133,14 +175,22 @@ Resources:
       FunctionName: rekognition-handler
       CodeUri: lambdas/rekognition_handler/
       Handler: lambda_function.lambda_handler
+      ReservedConcurrencyLimit: 20
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref S3Bucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CacheTable
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
               Action:
                 - rekognition:DetectLabels
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
               Resource: '*'
 
   # LLM Lambda Function
@@ -150,13 +200,20 @@ Resources:
       FunctionName: llm-handler
       CodeUri: lambdas/llm_handler/
       Handler: lambda_function.lambda_handler
+      ReservedConcurrencyLimit: 5
       Policies:
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
               Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/*'
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+              Resource: '*'
 
   # Orchestrator Lambda Function
   OrchestratorFunction:
@@ -165,9 +222,12 @@ Resources:
       FunctionName: orchestrator-handler
       CodeUri: lambdas/orchestrator/
       Handler: lambda_function.lambda_handler
+      ReservedConcurrencyLimit: 15
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref S3Bucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CacheTable
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
@@ -183,7 +243,13 @@ Resources:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
               Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/*'
+            - Effect: Allow
+              Action:
+                - xray:PutTraceSegments
+                - xray:PutTelemetryRecords
+              Resource: '*'
       Events:
         AnalyzeApi:
           Type: Api
