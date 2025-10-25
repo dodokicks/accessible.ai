@@ -1,17 +1,56 @@
 version: '3.8'
 
 services:
-  zillow-scraper:
-    build: .
+  localstack:
+    image: localstack/localstack:latest
+    container_name: accessibility-checker-localstack
     ports:
-      - "5000:5000"
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services port range
     environment:
-      - FLASK_ENV=development
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-zillow-images}
-      - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
+      - DEBUG=1
+      - LAMBDA_EXECUTOR=docker
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - SERVICES=lambda,s3,rekognition,bedrock,iam,cloudformation,logs
+      - HOSTNAME_EXTERNAL=localstack
+      - LAMBDA_DOCKER_NETWORK=accessibility-checker_default
+      - LAMBDA_REMOVE_CONTAINERS=true
+      - LAMBDA_REMOTE_DOCKER=false
+      - LAMBDA_DOCKER_FLAGS=--rm
+      - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=60
     volumes:
-      - .:/app
-    restart: unless-stopped
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./localstack-data:/tmp/localstack"
+    networks:
+      - accessibility-checker
+
+  # Optional: Redis for caching (if needed)
+  redis:
+    image: redis:7-alpine
+    container_name: accessibility-checker-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - accessibility-checker
+
+  # Optional: PostgreSQL for data storage (if needed)
+  postgres:
+    image: postgres:15-alpine
+    container_name: accessibility-checker-postgres
+    environment:
+      - POSTGRES_DB=accessibility_checker
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - accessibility-checker
+
+volumes:
+  postgres_data:
+
+networks:
+  accessibility-checker:
+    driver: bridge
