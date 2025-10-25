@@ -5,15 +5,22 @@ Provides secure, temporary upload URLs for frontend file uploads.
 
 import json
 import boto3
-import logging
 import uuid
 import os
+import time
 from typing import Dict, Any
 from urllib.parse import urlparse
 
-# Configure CloudWatch logging
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+# Import custom modules
+from utils.structured_logger import get_logger, create_request_context
+from utils.exceptions import (
+    InvalidInputError, S3Error, ValidationError, 
+    handle_aws_error, AccessibilityCheckerError
+)
+from utils.validation import PresignedUrlRequest, validate_file_size
+
+# Initialize structured logger
+logger = get_logger(__name__)
 
 # Initialize AWS clients
 s3_client = boto3.client('s3')
@@ -49,69 +56,62 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Returns:
         Dict containing upload URL, fields, and generated key
     """
-    try:
-        # Log the incoming event for debugging
-        logger.info(f"Generating presigned URL for event: {json.dumps(event)}")
-        
-        # Extract and validate input parameters
-        filename = event.get('filename')
-        content_type = event.get('content_type')
-        
-        # Validate required parameters
-        if not filename:
-            logger.error("Missing 'filename' in event")
-            return {
-                'statusCode': 400,
-                'body': json.dumps({'error': 'Missing filename parameter'})
-            }
-        
-        if not content_type:
-            logger.error("Missing 'content_type' in event")
-            return {
-                'statusCode': 400,
-                'body': json.dumps({'error': 'Missing content_type parameter'})
-            }
-        
-        # Validate file type
-        if not is_valid_file_type(filename, content_type):
-            logger.error(f"Invalid file type: {filename} ({content_type})")
-            return {
-                'statusCode': 400,
-                'body': json.dumps({
-                    'error': 'Invalid file type',
-                    'message': 'Only JPG, PNG, and WebP images are allowed'
-                })
-            }
-        
-        # Generate unique key to prevent collisions
-        unique_key = generate_unique_key(filename)
-        
-        logger.info(f"Generating presigned URL for: {unique_key}")
-        
-        # Generate presigned POST URL
-        presigned_data = generate_presigned_post(unique_key, content_type)
-        
-        logger.info(f"Successfully generated presigned URL for: {unique_key}")
-        
-        return {
-            'statusCode': 200,
-            'body': json.dumps({
-                'upload_url': presigned_data['url'],
-                'fields': presigned_data['fields'],
-                'key': unique_key,
-                'expires_in': EXPIRATION_SECONDS
-            })
-        }
-        
-    except Exception as e:
-        logger.error(f"Error generating presigned URL: {str(e)}", exc_info=True)
-        return {
-            'statusCode': 500,
-            'body': json.dumps({
-                'error': 'Failed to generate presigned URL',
-                'message': str(e)
-            })
-        }
+    request_id = getattr(context, 'aws_request_id', 'unknown')
+    
+    with create_request_context(request_id, 'presigned-url-generator') as ctx:
+        try:
+            # Log the incoming event for debugging
+            ctx.log_operation('input_validation', f"Processing presigned URL request: {json.dumps(event)}")
+            
+            # Validate input using Pydantic model
+            try:
+                request_data = PresignedUrlRequest(**event)
+            except Exception as validation_error:
+                ctx.log_error('input_validation', f"Input validation failed: {str(validation_error)}")
+                return create_error_response(400, InvalidInputError(
+                    f"Input validation failed: {str(validation_error)}",
+                    field="event"
+                ))
+            
+            # Generate unique key to prevent collisions
+            unique_key = generate_unique_key(request_data.filename)
+            
+            ctx.log_operation('key_generation', f"Generated unique key: {unique_key}")
+            
+            # Generate presigned POST URL
+            try:
+                presigned_data = generate_presigned_post(unique_key, request_data.content_type)
+                ctx.log_operation('presigned_generation', f"Successfully generated presigned URL for: {unique_key}")
+                
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({
+                        'upload_url': presigned_data['url'],
+                        'fields': presigned_data['fields'],
+                        'key': unique_key,
+                        'expires_in': EXPIRATION_SECONDS
+                    })
+                }
+                
+            except Exception as s3_error:
+                ctx.log_error('s3_operation', f"S3 operation failed: {str(s3_error)}", s3_error)
+                return create_error_response(500, S3Error(
+                    f"Failed to generate presigned URL: {str(s3_error)}",
+                    operation="generate_presigned_post",
+                    bucket=S3_BUCKET,
+                    key=unique_key
+                ))
+                
+        except AccessibilityCheckerError as custom_error:
+            ctx.log_error('custom_error', f"Custom error: {custom_error.message}", custom_error)
+            return create_error_response(400, custom_error)
+            
+        except Exception as e:
+            ctx.log_error('unexpected_error', f"Unexpected error: {str(e)}", e)
+            return create_error_response(500, AccessibilityCheckerError(
+                f"Internal server error: {str(e)}",
+                error_code="INTERNAL_ERROR"
+            ))
 
 def is_valid_file_type(filename: str, content_type: str) -> bool:
     """
@@ -157,6 +157,23 @@ def generate_unique_key(filename: str) -> str:
     logger.info(f"Generated unique key: {unique_key}")
     return unique_key
 
+def create_error_response(status_code: int, error: AccessibilityCheckerError) -> Dict[str, Any]:
+    """
+    Create standardized error response.
+    
+    Args:
+        status_code: HTTP status code
+        error: Custom exception
+        
+    Returns:
+        Error response dictionary
+    """
+    return {
+        'statusCode': status_code,
+        'body': error.to_json()
+    }
+
+
 def generate_presigned_post(key: str, content_type: str) -> Dict[str, Any]:
     """
     Generate presigned POST data for S3 upload.
@@ -189,7 +206,8 @@ def generate_presigned_post(key: str, content_type: str) -> Dict[str, Any]:
         
     except Exception as e:
         logger.error(f"Failed to generate presigned POST: {str(e)}")
-        raise
+        # Convert AWS error to custom exception
+        raise handle_aws_error(e, "generate_presigned_post", "s3")
 
 def validate_filename(filename: str) -> bool:
     """
