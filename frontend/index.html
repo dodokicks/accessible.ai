@@ -142,11 +142,6 @@
             cursor: not-allowed;
         }
 
-        .image-counter {
-            color: #e0e0e0;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
 
         .property-address {
             background: #2d3748;
@@ -759,9 +754,6 @@
                         
                         <div class="image-navigation" id="imageNavigation" style="display: none;">
                             <button class="nav-btn" id="prevBtn" onclick="previousImage()">‹</button>
-                            <div class="image-counter">
-                                <span id="currentImageNum">1</span> / <span id="totalImages">0</span>
-                            </div>
                             <button class="nav-btn" id="nextBtn" onclick="nextImage()">›</button>
                         </div>
                         
@@ -1180,13 +1172,8 @@
         }
 
         function updateNavigation() {
-            const currentImageNum = document.getElementById('currentImageNum');
-            const totalImages = document.getElementById('totalImages');
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
-            
-            currentImageNum.textContent = currentImageIndex + 1;
-            totalImages.textContent = selectedImages.length;
             
             prevBtn.disabled = currentImageIndex === 0;
             nextBtn.disabled = currentImageIndex === selectedImages.length - 1;
