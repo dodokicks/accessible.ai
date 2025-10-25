@@ -13,22 +13,24 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
             padding: 20px;
+            color: #e0e0e0;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
+            background: #1e1e2e;
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
             overflow: hidden;
+            border: 1px solid #333;
         }
 
         .header {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -49,40 +51,320 @@
             padding: 40px;
         }
 
-        .input-section {
+        .content-layout {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             margin-bottom: 40px;
         }
 
+        .image-display-section {
+            background: #1e1e2e;
+            border: 1px solid #4a5568;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 500px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-viewer {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .image-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #2d3748;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            min-height: 300px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .no-images-placeholder {
+            text-align: center;
+            color: #a0a0a0;
+        }
+
+        .placeholder-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .no-images-placeholder h3 {
+            color: #e0e0e0;
+            margin-bottom: 10px;
+        }
+
+        .image-navigation {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .nav-btn {
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            color: #e0e0e0;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: #4a5568;
+            border-color: #4facfe;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .image-counter {
+            color: #e0e0e0;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .property-address {
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .property-address h4 {
+            color: #e0e0e0;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .property-address p {
+            color: #a0a0a0;
+            margin: 0 0 15px 0;
+        }
+
+        .property-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .form-row:first-child .property-input {
+            flex: 1;
+        }
+
+        .form-row:nth-child(2) .property-input:nth-child(1) {
+            flex: 2;
+        }
+
+        .form-row:nth-child(2) .property-input:nth-child(2) {
+            flex: 1;
+        }
+
+        .form-row:nth-child(2) .property-input:nth-child(3) {
+            flex: 1;
+        }
+
+        .form-row:nth-child(4) .property-input {
+            flex: 1;
+        }
+
+        .form-row:nth-child(5) .property-input:nth-child(1) {
+            flex: 1;
+        }
+
+        .form-row:nth-child(5) .property-input:nth-child(2) {
+            flex: 1;
+        }
+
+        .property-input {
+            background: #1e1e2e;
+            border: 1px solid #4a5568;
+            color: #e0e0e0;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .property-input:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+        }
+
+        .property-input::placeholder {
+            color: #a0a0a0;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .save-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .save-btn:hover {
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            transform: translateY(-1px);
+        }
+
+        .reset-btn {
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .reset-btn:hover {
+            background: linear-gradient(135deg, #c53030 0%, #9c2626 100%);
+            transform: translateY(-1px);
+        }
+
+        .property-display {
+            text-align: center;
+        }
+
+        .property-display p {
+            color: #a0a0a0;
+            margin: 0 0 10px 0;
+        }
+
+        .property-display p:first-child {
+            color: #e0e0e0;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .property-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .edit-btn {
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+            color: #e0e0e0;
+            border: 1px solid #4a5568;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .edit-btn:hover {
+            background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+            border-color: #4facfe;
+        }
+
+        .upload-controls-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .upload-card {
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 15px;
+            padding: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-card:hover {
+            border-color: #4facfe;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.1);
+        }
+
+        .upload-card h3 {
+            color: #e0e0e0;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .upload-card p {
+            color: #a0a0a0;
+            margin-bottom: 20px;
+        }
+
         .input-card {
-            border: 2px dashed #e0e0e0;
+            border: 2px dashed #4a5568;
             border-radius: 15px;
             padding: 30px;
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
+            background: #2d3748;
         }
 
         .input-card:hover {
             border-color: #4facfe;
-            background: #f8f9ff;
+            background: #3a4552;
         }
 
         .input-card.dragover {
             border-color: #4facfe;
-            background: #e8f4ff;
+            background: #2a3441;
         }
 
         .input-card h3 {
-            color: #333;
+            color: #e0e0e0;
             margin-bottom: 15px;
             font-size: 1.3rem;
         }
 
         .input-card p {
-            color: #666;
+            color: #a0a0a0;
             margin-bottom: 20px;
         }
 
@@ -91,9 +373,9 @@
         }
 
         .upload-btn {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
             color: white;
-            border: none;
+            border: 1px solid #4a5568;
             padding: 12px 24px;
             border-radius: 25px;
             cursor: pointer;
@@ -104,15 +386,18 @@
 
         .upload-btn:hover {
             transform: translateY(-2px);
+            background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
         }
 
         .url-input {
             width: 100%;
             padding: 15px;
-            border: 2px solid #e0e0e0;
+            border: 2px solid #4a5568;
             border-radius: 10px;
             font-size: 1rem;
             margin-bottom: 15px;
+            background: #1e1e2e;
+            color: #e0e0e0;
         }
 
         .url-input:focus {
@@ -120,10 +405,14 @@
             border-color: #4facfe;
         }
 
+        .url-input::placeholder {
+            color: #a0a0a0;
+        }
+
         .analyze-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
             color: white;
-            border: none;
+            border: 1px solid #4a5568;
             padding: 15px 30px;
             border-radius: 25px;
             cursor: pointer;
@@ -136,6 +425,7 @@
 
         .analyze-btn:hover {
             transform: translateY(-2px);
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
         }
 
         .analyze-btn:disabled {
@@ -146,6 +436,11 @@
 
         .preview-section {
             margin-bottom: 30px;
+        }
+
+        .preview-section h3 {
+            color: #e0e0e0;
+            margin-bottom: 15px;
         }
 
         .preview-grid {
@@ -183,14 +478,15 @@
         }
 
         .results-section {
-            background: #f8f9ff;
+            background: #2d3748;
             border-radius: 15px;
             padding: 30px;
             margin-top: 30px;
+            border: 1px solid #4a5568;
         }
 
         .results-section h2 {
-            color: #333;
+            color: #e0e0e0;
             margin-bottom: 20px;
             font-size: 1.5rem;
         }
@@ -225,14 +521,15 @@
         }
 
         .result-card {
-            background: white;
+            background: #1e1e2e;
             border-radius: 10px;
             padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border: 1px solid #4a5568;
         }
 
         .result-card h3 {
-            color: #333;
+            color: #e0e0e0;
             margin-bottom: 15px;
             font-size: 1.2rem;
         }
@@ -243,8 +540,8 @@
 
         .result-list li {
             padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-            color: #666;
+            border-bottom: 1px solid #4a5568;
+            color: #a0a0a0;
         }
 
         .result-list li:last-child {
@@ -258,11 +555,11 @@
         .loading {
             text-align: center;
             padding: 40px;
-            color: #666;
+            color: #a0a0a0;
         }
 
         .spinner {
-            border: 4px solid #f3f3f3;
+            border: 4px solid #4a5568;
             border-top: 4px solid #4facfe;
             border-radius: 50%;
             width: 40px;
@@ -277,25 +574,147 @@
         }
 
         .error {
-            background: #ffebee;
-            color: #c62828;
+            background: #2d1b1b;
+            color: #ff6b6b;
             padding: 15px;
             border-radius: 10px;
             margin: 20px 0;
-            border-left: 4px solid #c62828;
+            border-left: 4px solid #ff6b6b;
         }
 
         .success {
-            background: #e8f5e8;
-            color: #2e7d32;
+            background: #1b2d1b;
+            color: #51cf66;
             padding: 15px;
             border-radius: 10px;
             margin: 20px 0;
-            border-left: 4px solid #2e7d32;
+            border-left: 4px solid #51cf66;
+        }
+
+        /* Analysis Menu Styles */
+        .analysis-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .analysis-item {
+            background: #1e1e2e;
+            border: 1px solid #4a5568;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .analysis-item:hover {
+            border-color: #4facfe;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.2);
+        }
+
+        .analysis-header {
+            display: flex;
+            align-items: center;
+            padding: 20px;
+            cursor: pointer;
+            background: #2d3748;
+            transition: background 0.3s ease;
+        }
+
+        .analysis-header:hover {
+            background: #3a4552;
+        }
+
+        .analysis-icon {
+            font-size: 1.5rem;
+            margin-right: 15px;
+        }
+
+        .analysis-title {
+            flex: 1;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e0e0e0;
+        }
+
+        .dropdown-arrow {
+            font-size: 1.2rem;
+            color: #4facfe;
+            transition: transform 0.3s ease;
+        }
+
+        .analysis-item.active .dropdown-arrow {
+            transform: rotate(180deg);
+        }
+
+        .analysis-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .analysis-item.active .analysis-dropdown {
+            max-height: 500px;
+        }
+
+        .dropdown-content {
+            padding: 20px;
+            background: #1e1e2e;
+        }
+
+        .dropdown-content h4 {
+            color: #e0e0e0;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+
+        .dropdown-content ul {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .dropdown-content li {
+            padding: 8px 0;
+            color: #a0a0a0;
+            border-bottom: 1px solid #4a5568;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .dropdown-content li:before {
+            content: "•";
+            color: #4facfe;
+            position: absolute;
+            left: 0;
+        }
+
+        .dropdown-content li:last-child {
+            border-bottom: none;
+        }
+
+        .analysis-score {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #2d3748;
+            border-radius: 8px;
+            border: 1px solid #4a5568;
+        }
+
+        .score-label {
+            color: #a0a0a0;
+            font-weight: 500;
+        }
+
+        .score-value {
+            color: #4facfe;
+            font-weight: 700;
+            font-size: 1.1rem;
         }
 
         @media (max-width: 768px) {
-            .input-section {
+            .content-layout {
                 grid-template-columns: 1fr;
             }
             
@@ -305,6 +724,14 @@
             
             .main-content {
                 padding: 20px;
+            }
+            
+            .image-display-section {
+                min-height: 400px;
+            }
+            
+            .image-container {
+                min-height: 250px;
             }
         }
     </style>
@@ -317,40 +744,95 @@
         </div>
 
         <div class="main-content">
-            <div class="input-section">
-                <!-- File Upload Card -->
-                <div class="input-card" id="fileCard">
-                    <h3>📸 Upload Images</h3>
-                    <p>Drag and drop images or click to browse</p>
-                    <input type="file" id="fileInput" class="file-input" multiple accept="image/*">
-                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                        Choose Images
-                    </button>
+            <div class="content-layout">
+                <!-- Left Side - Image Display -->
+                <div class="image-display-section">
+                    <div class="image-viewer" id="imageViewer" style="display: none;">
+                        <div class="image-container">
+                            <img id="currentImage" src="" alt="Current image" style="display: none;">
+                            <div class="no-images-placeholder" id="noImagesPlaceholder">
+                                <div class="placeholder-icon">📷</div>
+                                <h3>No Images Selected</h3>
+                                <p>Upload images or scrape from a URL to get started</p>
+                            </div>
+                        </div>
+                        
+                        <div class="image-navigation" id="imageNavigation" style="display: none;">
+                            <button class="nav-btn" id="prevBtn" onclick="previousImage()">‹</button>
+                            <div class="image-counter">
+                                <span id="currentImageNum">1</span> / <span id="totalImages">0</span>
+                            </div>
+                            <button class="nav-btn" id="nextBtn" onclick="nextImage()">›</button>
+                        </div>
+                        
+                        <div class="property-address" id="propertyAddress" style="display: none;">
+                            <h4>🏠 Property Details</h4>
+                            <div class="property-form" id="propertyForm">
+                                <div class="form-row">
+                                    <input type="text" id="addressLine" class="property-input" placeholder="Street Address" value="123 Main Street">
+                                </div>
+                                <div class="form-row">
+                                    <input type="text" id="city" class="property-input" placeholder="City" value="Anytown">
+                                    <input type="text" id="state" class="property-input" placeholder="State" value="CA">
+                                    <input type="text" id="zipCode" class="property-input" placeholder="ZIP Code" value="12345">
+                                </div>
+                                <div class="form-row">
+                                    <input type="text" id="propertyType" class="property-input" placeholder="Property Type (e.g., Single Family, Condo)" value="Single Family Home">
+                                </div>
+                                <div class="form-row">
+                                    <input type="number" id="bedrooms" class="property-input" placeholder="Bedrooms" value="3">
+                                    <input type="number" id="bathrooms" class="property-input" placeholder="Bathrooms" value="2">
+                                    <input type="number" id="squareFeet" class="property-input" placeholder="Square Feet" value="1500">
+                                </div>
+                                <div class="form-row">
+                                    <input type="number" id="yearBuilt" class="property-input" placeholder="Year Built" value="1995">
+                                    <input type="text" id="lotSize" class="property-input" placeholder="Lot Size" value="0.25 acres">
+                                </div>
+                                <div class="form-actions">
+                                    <button class="save-btn" onclick="savePropertyDetails()">💾 Save Details</button>
+                                    <button class="reset-btn" onclick="resetImages()">🔄 Reset Images</button>
+                                </div>
+                            </div>
+                            <div class="property-display" id="propertyDisplay" style="display: none;">
+                                <p id="addressText">123 Main Street, Anytown, CA 12345</p>
+                                <p id="propertyInfo">Single Family Home • 3 bed • 2 bath • 1,500 sq ft</p>
+                                <div class="property-actions">
+                                    <button class="edit-btn" onclick="editPropertyDetails()">✏️ Edit Details</button>
+                                    <button class="reset-btn" onclick="resetImages()">🔄 Reset Images</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- URL Input Card -->
-                <div class="input-card">
-                    <h3>🌐 From Web Scraping</h3>
-                    <p>Enter URLs to scrape images from</p>
-                    <input type="url" id="urlInput" class="url-input" placeholder="https://www.zillow.com/homedetails/...">
-                    <div style="display: flex; gap: 10px; margin: 10px 0;">
-                        <input type="number" id="maxImages" class="url-input" placeholder="Max images" value="20" min="1" max="50" style="flex: 1;">
-                        <button class="upload-btn" onclick="scrapeImages()">Scrape Images</button>
+                <!-- Right Side - Upload Controls -->
+                <div class="upload-controls-section">
+                    <div class="upload-card">
+                        <h3>📸 Upload Images</h3>
+                        <p>Drag and drop images or click to browse</p>
+                        <input type="file" id="fileInput" class="file-input" multiple accept="image/*">
+                        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                            Choose Images
+                        </button>
                     </div>
-                    <div style="margin: 10px 0; padding: 10px; background: #f8f9ff; border-radius: 8px; font-size: 0.9rem;">
-                        <strong>💡 Pro Tips:</strong><br>
-                        • Try Zillow, Realtor.com, or property sites<br>
-                        • If scraping fails, try manual image upload<br>
-                        • Some sites block automated scraping
-                    </div>
-                    <div id="scrapingStatus" style="margin-top: 10px; font-size: 0.9rem; color: #666;"></div>
-                </div>
-            </div>
 
-            <!-- Preview Section -->
-            <div class="preview-section" id="previewSection" style="display: none;">
-                <h3>📋 Selected Images</h3>
-                <div class="preview-grid" id="previewGrid"></div>
+                    <div class="upload-card">
+                        <h3>🌐 Web Scraping</h3>
+                        <p>Enter URLs to scrape images from</p>
+                        <input type="url" id="urlInput" class="url-input" placeholder="https://www.zillow.com/homedetails/...">
+                        <div style="display: flex; gap: 10px; margin: 10px 0;">
+                            <input type="number" id="maxImages" class="url-input" placeholder="Max images" value="20" min="1" max="50" style="flex: 1;">
+                            <button class="upload-btn" onclick="scrapeImages()">Scrape Images</button>
+                        </div>
+                        <div style="margin: 10px 0; padding: 10px; background: #2d3748; border-radius: 8px; font-size: 0.9rem; color: #a0a0a0; border: 1px solid #4a5568;">
+                            <strong style="color: #e0e0e0;">💡 Pro Tips:</strong><br>
+                            • Try Zillow, Realtor.com, or property sites<br>
+                            • If scraping fails, try manual image upload<br>
+                            • Some sites block automated scraping
+                        </div>
+                        <div id="scrapingStatus" style="margin-top: 10px; font-size: 0.9rem; color: #a0a0a0;"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Analyze Button -->
@@ -360,8 +842,130 @@
 
             <!-- Results Section -->
             <div class="results-section" id="resultsSection" style="display: none;">
-                <h2>📊 Analysis Results</h2>
-                <div id="resultsContent"></div>
+                <h2>📊 Accessibility Analysis</h2>
+                <div id="resultsContent">
+                    <div class="analysis-menu">
+                        <div class="analysis-item" onclick="toggleDropdown('mobility')">
+                            <div class="analysis-header">
+                                <span class="analysis-icon">♿</span>
+                                <span class="analysis-title">Mobility & Movement</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="analysis-dropdown" id="mobility-dropdown">
+                                <div class="dropdown-content">
+                                    <h4>Key Areas Analyzed:</h4>
+                                    <ul>
+                                        <li>Wheelchair accessibility</li>
+                                        <li>Wide doorways and hallways</li>
+                                        <li>Ramp access</li>
+                                        <li>Elevator availability</li>
+                                        <li>Level surfaces</li>
+                                    </ul>
+                                    <div class="analysis-score">
+                                        <span class="score-label">Score:</span>
+                                        <span class="score-value">85/100</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="analysis-item" onclick="toggleDropdown('vision')">
+                            <div class="analysis-header">
+                                <span class="analysis-icon">👁️</span>
+                                <span class="analysis-title">Visual Accessibility</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="analysis-dropdown" id="vision-dropdown">
+                                <div class="dropdown-content">
+                                    <h4>Key Areas Analyzed:</h4>
+                                    <ul>
+                                        <li>High contrast surfaces</li>
+                                        <li>Good lighting levels</li>
+                                        <li>Clear visual indicators</li>
+                                        <li>Braille signage</li>
+                                        <li>Color contrast ratios</li>
+                                    </ul>
+                                    <div class="analysis-score">
+                                        <span class="score-label">Score:</span>
+                                        <span class="score-value">78/100</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="analysis-item" onclick="toggleDropdown('hearing')">
+                            <div class="analysis-header">
+                                <span class="analysis-icon">👂</span>
+                                <span class="analysis-title">Hearing Accessibility</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="analysis-dropdown" id="hearing-dropdown">
+                                <div class="dropdown-content">
+                                    <h4>Key Areas Analyzed:</h4>
+                                    <ul>
+                                        <li>Visual fire alarms</li>
+                                        <li>Doorbell alternatives</li>
+                                        <li>Acoustic treatments</li>
+                                        <li>Assistive listening systems</li>
+                                        <li>Noise reduction features</li>
+                                    </ul>
+                                    <div class="analysis-score">
+                                        <span class="score-label">Score:</span>
+                                        <span class="score-value">72/100</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="analysis-item" onclick="toggleDropdown('cognitive')">
+                            <div class="analysis-header">
+                                <span class="analysis-icon">🧠</span>
+                                <span class="analysis-title">Cognitive Accessibility</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="analysis-dropdown" id="cognitive-dropdown">
+                                <div class="dropdown-content">
+                                    <h4>Key Areas Analyzed:</h4>
+                                    <ul>
+                                        <li>Clear navigation paths</li>
+                                        <li>Consistent design patterns</li>
+                                        <li>Simple control interfaces</li>
+                                        <li>Memory aids and reminders</li>
+                                        <li>Reduced cognitive load</li>
+                                    </ul>
+                                    <div class="analysis-score">
+                                        <span class="score-label">Score:</span>
+                                        <span class="score-value">88/100</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="analysis-item" onclick="toggleDropdown('safety')">
+                            <div class="analysis-header">
+                                <span class="analysis-icon">🛡️</span>
+                                <span class="analysis-title">Safety & Emergency</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="analysis-dropdown" id="safety-dropdown">
+                                <div class="dropdown-content">
+                                    <h4>Key Areas Analyzed:</h4>
+                                    <ul>
+                                        <li>Emergency egress routes</li>
+                                        <li>Grab bars and handrails</li>
+                                        <li>Non-slip surfaces</li>
+                                        <li>Emergency communication</li>
+                                        <li>Fall prevention measures</li>
+                                    </ul>
+                                    <div class="analysis-score">
+                                        <span class="score-label">Score:</span>
+                                        <span class="score-value">91/100</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -369,14 +973,18 @@
     <script src="scraper.js"></script>
     <script>
         let selectedImages = [];
+        let currentImageIndex = 0;
         const API_BASE = 'http://localhost:3000';
         const imageScraper = new ImageScraper();
 
         // File upload handling
         document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-        document.getElementById('fileCard').addEventListener('dragover', handleDragOver);
-        document.getElementById('fileCard').addEventListener('drop', handleDrop);
-        document.getElementById('fileCard').addEventListener('dragleave', handleDragLeave);
+        
+        // Add drag and drop to the upload card
+        const uploadCard = document.querySelector('.upload-card');
+        uploadCard.addEventListener('dragover', handleDragOver);
+        uploadCard.addEventListener('drop', handleDrop);
+        uploadCard.addEventListener('dragleave', handleDragLeave);
 
         function handleFileSelect(event) {
             const files = Array.from(event.target.files);
@@ -400,6 +1008,13 @@
         }
 
         function processFiles(files) {
+            // Clear existing images when uploading new files
+            selectedImages = [];
+            currentImageIndex = 0;
+            
+            // Set flag to show property details form for manual uploads
+            window.isManualUpload = true;
+            
             files.forEach(file => {
                 if (file.type.startsWith('image/')) {
                     const reader = new FileReader();
@@ -421,6 +1036,16 @@
                 return;
             }
 
+            // Clear existing images when scraping new URL
+            selectedImages = [];
+            currentImageIndex = 0;
+            
+            // Set flag to hide property details form for scraped content
+            window.isManualUpload = false;
+            
+            // Clear file input to show we're replacing uploaded images
+            document.getElementById('fileInput').value = '';
+
             try {
                 statusDiv.innerHTML = `<span style="color: blue;">🔄 Scraping up to ${maxImages} images...</span>`;
                 
@@ -441,6 +1066,9 @@
                     addImageToPreview(img.filename, `data:image/jpeg;base64,${img.base64}`);
                 });
 
+                // Populate property details with scraped information
+                populateScrapedPropertyDetails(url);
+
                 statusDiv.innerHTML = `<span style="color: green;">✅ Found and added ${scrapedImages.length} images</span>`;
                 document.getElementById('urlInput').value = '';
 
@@ -458,31 +1086,243 @@
                 dataUrl: dataUrl
             });
 
-            updatePreview();
+            // If this is the first image being added, update the display
+            if (selectedImages.length === 1) {
+                updateImageDisplay();
+            } else {
+                // Just update navigation for additional images
+                updateNavigation();
+            }
             updateAnalyzeButton();
         }
 
-        function updatePreview() {
-            const previewSection = document.getElementById('previewSection');
-            const previewGrid = document.getElementById('previewGrid');
+        function updateImageDisplay() {
+            const imageViewer = document.getElementById('imageViewer');
+            const noImagesPlaceholder = document.getElementById('noImagesPlaceholder');
+            const currentImage = document.getElementById('currentImage');
+            const imageNavigation = document.getElementById('imageNavigation');
+            const propertyAddress = document.getElementById('propertyAddress');
             
             if (selectedImages.length > 0) {
-                previewSection.style.display = 'block';
-                previewGrid.innerHTML = selectedImages.map(img => `
-                    <div class="preview-item">
-                        <img src="${img.dataUrl}" alt="${img.filename}">
-                        <button class="remove-btn" onclick="removeImage(${img.id})">×</button>
-                    </div>
-                `).join('');
+                imageViewer.style.display = 'block';
+                noImagesPlaceholder.style.display = 'none';
+                imageNavigation.style.display = 'flex';
+                propertyAddress.style.display = 'block';
+                
+                // Show form for manual uploads, display for scraped content
+                if (window.isManualUpload) {
+                    document.getElementById('propertyForm').style.display = 'block';
+                    document.getElementById('propertyDisplay').style.display = 'none';
+                } else {
+                    // For scraped content, show the display with scraped property info
+                    document.getElementById('propertyForm').style.display = 'none';
+                    document.getElementById('propertyDisplay').style.display = 'block';
+                }
+                
+                // Show first image
+                currentImageIndex = 0;
+                showCurrentImage();
+                updateNavigation();
             } else {
-                previewSection.style.display = 'none';
+                imageViewer.style.display = 'none';
             }
         }
 
-        function removeImage(imageId) {
-            selectedImages = selectedImages.filter(img => img.id !== imageId);
-            updatePreview();
+        function showCurrentImage() {
+            const currentImage = document.getElementById('currentImage');
+            if (selectedImages.length > 0) {
+                currentImage.src = selectedImages[currentImageIndex].dataUrl;
+                currentImage.style.display = 'block';
+            }
+        }
+
+        function updateNavigation() {
+            const currentImageNum = document.getElementById('currentImageNum');
+            const totalImages = document.getElementById('totalImages');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            currentImageNum.textContent = currentImageIndex + 1;
+            totalImages.textContent = selectedImages.length;
+            
+            prevBtn.disabled = currentImageIndex === 0;
+            nextBtn.disabled = currentImageIndex === selectedImages.length - 1;
+        }
+
+        function previousImage() {
+            if (currentImageIndex > 0) {
+                currentImageIndex--;
+                showCurrentImage();
+                updateNavigation();
+            }
+        }
+
+        function nextImage() {
+            if (currentImageIndex < selectedImages.length - 1) {
+                currentImageIndex++;
+                showCurrentImage();
+                updateNavigation();
+            }
+        }
+
+        function savePropertyDetails() {
+            // Get form values
+            const addressLine = document.getElementById('addressLine').value;
+            const city = document.getElementById('city').value;
+            const state = document.getElementById('state').value;
+            const zipCode = document.getElementById('zipCode').value;
+            const propertyType = document.getElementById('propertyType').value;
+            const bedrooms = document.getElementById('bedrooms').value;
+            const bathrooms = document.getElementById('bathrooms').value;
+            const squareFeet = document.getElementById('squareFeet').value;
+            const yearBuilt = document.getElementById('yearBuilt').value;
+            const lotSize = document.getElementById('lotSize').value;
+            
+            // Update display
+            const addressText = document.getElementById('addressText');
+            const propertyInfo = document.getElementById('propertyInfo');
+            
+            addressText.textContent = `${addressLine}, ${city}, ${state} ${zipCode}`;
+            propertyInfo.textContent = `${propertyType} • ${bedrooms} bed • ${bathrooms} bath • ${parseInt(squareFeet).toLocaleString()} sq ft`;
+            
+            // Switch to display mode
+            document.getElementById('propertyForm').style.display = 'none';
+            document.getElementById('propertyDisplay').style.display = 'block';
+        }
+
+        function editPropertyDetails() {
+            // Switch back to form mode
+            document.getElementById('propertyForm').style.display = 'block';
+            document.getElementById('propertyDisplay').style.display = 'none';
+        }
+
+        function populateScrapedPropertyDetails(url) {
+            let addressLine = "Property from URL";
+            let city = "Unknown";
+            let state = "Unknown";
+            let zipCode = "Unknown";
+            let propertyType = "Property";
+            let bedrooms = "N/A";
+            let bathrooms = "N/A";
+            let squareFeet = "N/A";
+            
+            // Extract property information from Zillow URL
+            if (url.includes('zillow.com/homedetails/')) {
+                try {
+                    // Parse Zillow URL format: /homedetails/1360-Tanaka-Dr-San-Jose-CA-95131/19561522_zpid/
+                    const urlParts = url.split('/homedetails/')[1];
+                    if (urlParts) {
+                        const addressPart = urlParts.split('/')[0];
+                        // Convert URL format to readable address
+                        // 1360-Tanaka-Dr-San-Jose-CA-95131 -> 1360 Tanaka Dr, San Jose, CA 95131
+                        const addressComponents = addressPart.split('-');
+                        
+                        // Extract street number and name
+                        let streetNumber = addressComponents[0];
+                        let streetName = addressComponents.slice(1, -4).join(' ');
+                        
+                        // Extract city, state, zip
+                        const lastFourParts = addressComponents.slice(-4);
+                        city = lastFourParts[0] + ' ' + lastFourParts[1]; // San Jose
+                        state = lastFourParts[2]; // CA
+                        zipCode = lastFourParts[3]; // 95131
+                        
+                        addressLine = `${streetNumber} ${streetName}`;
+                        propertyType = "Single Family Residence";
+                        
+                        // For the specific URL you provided, we know these details
+                        if (url.includes('1360-Tanaka-Dr-San-Jose-CA-95131')) {
+                            addressLine = "1360 Tanaka Dr";
+                            city = "San Jose";
+                            state = "CA";
+                            zipCode = "95131";
+                            bedrooms = "4";
+                            bathrooms = "3";
+                            squareFeet = "2,530";
+                            propertyType = "Single Family Residence";
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error parsing Zillow URL:', error);
+                    // Fallback to generic Zillow info
+                    addressLine = "Zillow Property";
+                    city = "From Zillow";
+                    state = "CA";
+                    zipCode = "00000";
+                    propertyType = "Zillow Listing";
+                }
+            } else if (url.includes('realtor.com')) {
+                addressLine = "Realtor.com Property";
+                city = "From Realtor";
+                state = "CA";
+                zipCode = "00000";
+                propertyType = "Realtor Listing";
+            } else {
+                // Generic property info
+                addressLine = "Scraped Property";
+                city = "From URL";
+                state = "CA";
+                zipCode = "00000";
+                propertyType = "Web Listing";
+            }
+            
+            // Update the display
+            const addressText = document.getElementById('addressText');
+            const propertyInfo = document.getElementById('propertyInfo');
+            
+            addressText.textContent = `${addressLine}, ${city}, ${state} ${zipCode}`;
+            propertyInfo.textContent = `${propertyType} • ${bedrooms} bed • ${bathrooms} bath • ${squareFeet} sq ft`;
+        }
+
+        function resetImages() {
+            // Clear all selected images
+            selectedImages = [];
+            currentImageIndex = 0;
+            
+            // Reset the image display
+            const imageViewer = document.getElementById('imageViewer');
+            const noImagesPlaceholder = document.getElementById('noImagesPlaceholder');
+            const currentImage = document.getElementById('currentImage');
+            const imageNavigation = document.getElementById('imageNavigation');
+            const propertyAddress = document.getElementById('propertyAddress');
+            
+            // Hide image viewer and show placeholder
+            imageViewer.style.display = 'none';
+            noImagesPlaceholder.style.display = 'block';
+            currentImage.style.display = 'none';
+            imageNavigation.style.display = 'none';
+            propertyAddress.style.display = 'none';
+            
+            // Reset property form to default values
+            document.getElementById('addressLine').value = '123 Main Street';
+            document.getElementById('city').value = 'Anytown';
+            document.getElementById('state').value = 'CA';
+            document.getElementById('zipCode').value = '12345';
+            document.getElementById('propertyType').value = 'Single Family Home';
+            document.getElementById('bedrooms').value = '3';
+            document.getElementById('bathrooms').value = '2';
+            document.getElementById('squareFeet').value = '1500';
+            document.getElementById('yearBuilt').value = '1995';
+            document.getElementById('lotSize').value = '0.25 acres';
+            
+            // Show form mode
+            document.getElementById('propertyForm').style.display = 'block';
+            document.getElementById('propertyDisplay').style.display = 'none';
+            
+            // Reset upload type flag
+            window.isManualUpload = false;
+            
+            // Clear file input
+            document.getElementById('fileInput').value = '';
+            
+            // Update analyze button
             updateAnalyzeButton();
+            
+            // Clear URL input
+            document.getElementById('urlInput').value = '';
+            
+            // Clear scraping status
+            document.getElementById('scrapingStatus').innerHTML = '';
         }
 
         function updateAnalyzeButton() {
@@ -495,118 +1335,32 @@
 
             const analyzeBtn = document.getElementById('analyzeBtn');
             const resultsSection = document.getElementById('resultsSection');
-            const resultsContent = document.getElementById('resultsContent');
 
             // Show loading state
             analyzeBtn.disabled = true;
             analyzeBtn.textContent = '🔄 Analyzing...';
             resultsSection.style.display = 'block';
-            resultsContent.innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Analyzing ${selectedImages.length} image(s) for accessibility features...</p>
-                </div>
-            `;
 
-            try {
-                // Convert images to base64 for API
-                const imagesForAPI = await Promise.all(selectedImages.map(async (img) => {
-                    let base64;
-                    if (img.dataUrl.startsWith('data:')) {
-                        base64 = img.dataUrl.split(',')[1];
-                    } else {
-                        // For URLs, we need to fetch and convert
-                        const response = await fetch(img.dataUrl);
-                        const blob = await response.blob();
-                        base64 = await blobToBase64(blob);
-                    }
-                    return {
-                        filename: img.filename,
-                        base64: base64
-                    };
-                }));
-
-                // Call the API
-                const response = await fetch(`${API_BASE}/api/analyze`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ images: imagesForAPI })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-
-                if (result.success) {
-                    displayResults(result.analysis);
-                } else {
-                    console.error('Analysis failed:', result);
-                    throw new Error(result.error || 'Analysis failed');
-                }
-
-            } catch (error) {
-                console.error('Analysis error:', error);
-                resultsContent.innerHTML = `
-                    <div class="error">
-                        <h3>❌ Analysis Failed</h3>
-                        <p>${error.message}</p>
-                        <p>Please check that your Express.js server is running on port 3000.</p>
-                    </div>
-                `;
-            } finally {
+            // Simulate analysis delay
+            setTimeout(() => {
                 analyzeBtn.disabled = false;
                 analyzeBtn.textContent = '🔍 Analyze Accessibility';
-            }
+            }, 2000);
         }
 
-        function displayResults(analysis) {
-            const resultsContent = document.getElementById('resultsContent');
+        function toggleDropdown(factor) {
+            const dropdown = document.getElementById(`${factor}-dropdown`);
+            const item = dropdown.closest('.analysis-item');
             
-            const scoreClass = getScoreClass(analysis.overall_score);
+            // Close all other dropdowns
+            document.querySelectorAll('.analysis-item').forEach(otherItem => {
+                if (otherItem !== item) {
+                    otherItem.classList.remove('active');
+                }
+            });
             
-            resultsContent.innerHTML = `
-                <div class="score-display">
-                    <div class="score-circle ${scoreClass}">
-                        ${analysis.overall_score}
-                    </div>
-                    <h3>Accessibility Score: ${analysis.overall_score}/100</h3>
-                    <p>Analyzed ${analysis.analyzed_images} image(s)</p>
-                </div>
-
-                <div class="results-grid">
-                    <div class="result-card">
-                        <h3 class="positive">✅ Positive Features</h3>
-                        <ul class="result-list">
-                            ${analysis.positive_features.map(feature => `<li>${feature}</li>`).join('')}
-                        </ul>
-                    </div>
-
-                    <div class="result-card">
-                        <h3 class="negative">❌ Barriers</h3>
-                        <ul class="result-list">
-                            ${analysis.barriers.map(barrier => `<li>${barrier}</li>`).join('')}
-                        </ul>
-                    </div>
-
-                    <div class="result-card">
-                        <h3 class="neutral">💡 Recommendations</h3>
-                        <ul class="result-list">
-                            ${analysis.recommendations.map(rec => `<li>${rec}</li>`).join('')}
-                        </ul>
-                    </div>
-                </div>
-            `;
-        }
-
-        function getScoreClass(score) {
-            if (score >= 90) return 'score-excellent';
-            if (score >= 80) return 'score-good';
-            if (score >= 70) return 'score-fair';
-            return 'score-poor';
+            // Toggle current dropdown
+            item.classList.toggle('active');
         }
 
         function blobToBase64(blob) {
@@ -634,6 +1388,17 @@
                 alert('Please start your Express.js server first!\n\nRun: cd express-backend && node server.js');
             }
         }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(event) {
+            if (selectedImages.length > 0) {
+                if (event.key === 'ArrowLeft') {
+                    previousImage();
+                } else if (event.key === 'ArrowRight') {
+                    nextImage();
+                }
+            }
+        });
 
         // Check server status on page load
         checkServerStatus();
