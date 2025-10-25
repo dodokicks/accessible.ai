@@ -169,6 +169,8 @@ pytest -v tests/
 - Python 3.9+ (for Zillow scraper) / Python 3.11 (for Lambda backend)
 - AWS Account with S3 access
 - AWS credentials configured
+- Docker (for local development)
+- AWS SAM CLI (for deployment)
 
 ### Setup Steps
 
@@ -180,7 +182,14 @@ cd housingA
 
 2. **Install dependencies**
 ```bash
+# Install Python dependencies
 pip install -r requirements.txt
+
+# Install development dependencies
+pip install pytest pytest-mock moto boto3
+
+# Or use the Makefile
+make install
 ```
 
 3. **Configure AWS credentials**
@@ -198,6 +207,122 @@ export AWS_DEFAULT_REGION=us-east-1
 ```bash
 cp env.example .env
 # Edit .env with your configuration
+```
+
+## 🧪 Local Development & Testing
+
+### Quick Start
+```bash
+# Set up development environment
+make dev-setup
+
+# Run all tests
+make test
+
+# Start local API Gateway
+make start-api
+```
+
+### Testing Commands
+```bash
+# Run all tests
+make test
+
+# Run unit tests only
+make test-unit
+
+# Run local testing script
+make test-local
+
+# Test individual functions
+make test-presigned
+make test-rekognition
+make test-llm
+make test-orchestrator
+
+# Test API endpoints
+make test-api
+```
+
+### Local AWS Simulation
+```bash
+# Start LocalStack for local AWS services
+make setup-localstack
+
+# Or manually with Docker Compose
+docker-compose up -d localstack
+
+# Check LocalStack status
+curl http://localhost:4566/health
+```
+
+### Local Lambda Testing
+```bash
+# Test individual Lambda functions
+python test_local.py --test
+
+# Test specific function
+python test_local.py --function presigned
+python test_local.py --function rekognition
+python test_local.py --function llm
+python test_local.py --function orchestrator
+
+# Simulate API calls
+python test_local.py --simulate
+```
+
+### Local API Gateway
+```bash
+# Start local API Gateway
+make start-api
+
+# Test endpoints
+curl -X POST http://localhost:3000/presigned-url \
+  -H "Content-Type: application/json" \
+  -d '{"filename": "test.jpg", "content_type": "image/jpeg"}'
+
+curl -X POST http://localhost:3000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"images": [{"bucket": "test", "key": "test.jpg"}]}'
+```
+
+## 🛠️ Development Commands
+
+### Makefile Commands
+```bash
+# Show all available commands
+make help
+
+# Setup & Installation
+make install              # Install Python dependencies
+make setup-localstack     # Start LocalStack for local AWS simulation
+make dev-setup           # Complete development environment setup
+
+# Testing
+make test                # Run all tests (unit + local)
+make test-unit           # Run unit tests with pytest
+make test-local          # Run local testing script
+make test-presigned      # Test Presigned URL function
+make test-rekognition    # Test Rekognition function
+make test-llm           # Test LLM function
+make test-orchestrator  # Test Orchestrator function
+make test-api           # Test API endpoints
+
+# Development
+make invoke-local        # Test individual Lambda functions locally
+make start-api          # Start local API Gateway
+make clean              # Clean up temporary files
+
+# Deployment
+make build              # Build SAM application
+make deploy             # Deploy to AWS using SAM
+make deploy-dev         # Deploy to dev environment
+make deploy-prod        # Deploy to prod environment
+
+# Docker
+make docker-up          # Start all Docker services
+make docker-down        # Stop all Docker services
+make docker-logs        # Show Docker logs
 ```
 
 ## 🐳 Docker Deployment
