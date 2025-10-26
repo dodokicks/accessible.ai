@@ -26,14 +26,14 @@ class ValidationService {
     // Image schema for analysis requests
     this.imageSchema = Joi.object({
       filename: Joi.string().min(1).max(255).required(),
-      base64: Joi.string().min(100).max(15 * 1024 * 1024).required(), // ~10MB base64
+      base64: Joi.string().min(1).max(15 * 1024 * 1024).required(), // Very lenient min length
       size: Joi.number().integer().min(1).max(10 * 1024 * 1024).optional(), // 10MB max
       mimetype: Joi.string().valid('image/jpeg', 'image/jpg', 'image/png', 'image/webp').optional()
     });
 
     // Analysis request schema
     this.analyzeRequestSchema = Joi.object({
-      images: Joi.array().items(this.imageSchema).min(1).max(5).required(),
+      images: Joi.array().items(this.imageSchema).min(1).max(50).required(), // Increased limit
       options: Joi.object({
         detailed_analysis: Joi.boolean().default(true),
         include_recommendations: Joi.boolean().default(true),
@@ -58,7 +58,9 @@ class ValidationService {
   validateAnalyzeRequest(data) {
     try {
       this.logger.info('Validating analyze request', { 
-        imageCount: data.images?.length || 0 
+        imageCount: data.images?.length || 0,
+        firstImageKeys: data.images?.[0] ? Object.keys(data.images[0]) : [],
+        firstImageBase64Length: data.images?.[0]?.base64?.length || 0
       });
 
       const { error, value } = this.analyzeRequestSchema.validate(data, {
@@ -68,7 +70,7 @@ class ValidationService {
 
       if (error) {
         this.logger.warn('Analyze request validation failed', { 
-          errors: error.details 
+          errors: error.details.map(d => ({ message: d.message, path: d.path }))
         });
         return { error, value: null };
       }
