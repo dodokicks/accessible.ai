@@ -23,6 +23,7 @@ const ImageService = require('./services/image-service');
 const ValidationService = require('./services/validation-service');
 const S3Service = require('./services/s3-service');
 const BedrockImageAnalysisService = require('./services/bedrock-image-analysis-service');
+const OpenRouterImageAnalysisService = require('./services/openrouter-image-analysis-service');
 
 // Initialize Express app
 const app = express();
@@ -114,7 +115,56 @@ const comprehensiveAnalysisService = new ComprehensiveAnalysisService();
 const imageService = new ImageService();
 const validationService = new ValidationService();
 const s3Service = new S3Service();
-const bedrockImageAnalysisService = new BedrockImageAnalysisService();
+
+// Initialize AI analysis services
+let bedrockImageAnalysisService = null;
+let openRouterImageAnalysisService = null;
+
+// Service selector - choose between Bedrock and OpenRouter
+const AI_SERVICE_TYPE = process.env.AI_SERVICE_TYPE || 'openrouter'; // 'bedrock' or 'openrouter'
+
+try {
+  if (AI_SERVICE_TYPE === 'bedrock') {
+    bedrockImageAnalysisService = new BedrockImageAnalysisService();
+    logger.info('🤖 Using AWS Bedrock for image analysis');
+  } else {
+    openRouterImageAnalysisService = new OpenRouterImageAnalysisService();
+    logger.info('🤖 Using OpenRouter for image analysis');
+  }
+} catch (error) {
+  logger.error('Failed to initialize AI service:', error.message);
+  // Fallback to the other service
+  if (AI_SERVICE_TYPE === 'bedrock') {
+    try {
+      openRouterImageAnalysisService = new OpenRouterImageAnalysisService();
+      logger.info('🔄 Fallback: Using OpenRouter for image analysis');
+    } catch (fallbackError) {
+      logger.error('Both AI services failed to initialize:', fallbackError.message);
+    }
+  } else {
+    try {
+      bedrockImageAnalysisService = new BedrockImageAnalysisService();
+      logger.info('🔄 Fallback: Using AWS Bedrock for image analysis');
+    } catch (fallbackError) {
+      logger.error('Both AI services failed to initialize:', fallbackError.message);
+    }
+  }
+}
+
+// Get the active AI service
+const getAIService = () => {
+  if (AI_SERVICE_TYPE === 'bedrock' && bedrockImageAnalysisService) {
+    return bedrockImageAnalysisService;
+  } else if (AI_SERVICE_TYPE === 'openrouter' && openRouterImageAnalysisService) {
+    return openRouterImageAnalysisService;
+  } else if (bedrockImageAnalysisService) {
+    return bedrockImageAnalysisService;
+  } else if (openRouterImageAnalysisService) {
+    return openRouterImageAnalysisService;
+  } else {
+    throw new Error('No AI service available');
+  }
+};
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -383,14 +433,14 @@ app.post('/api/scrape', async (req, res) => {
       if (s3UploadSuccess && uploadResult.uploadedImages.length > 0) {
         // Use S3 URLs if upload was successful
         const s3ImageUrls = uploadResult.uploadedImages.map(img => img.s3Url);
-        bedrockAnalysis = await bedrockImageAnalysisService.analyzePropertyImages(
+        bedrockAnalysis = await getAIService().analyzePropertyImages(
           s3ImageUrls,
           result.propertyDetails
         );
       } else {
         // Fallback: analyze images directly from original URLs
         logger.info('📸 Analyzing images directly from scraped URLs (S3 fallback)');
-        bedrockAnalysis = await bedrockImageAnalysisService.analyzePropertyImages(
+        bedrockAnalysis = await getAIService().analyzePropertyImages(
           imageUrls,
           result.propertyDetails
         );
@@ -489,7 +539,7 @@ app.post('/api/analyze-s3-images', async (req, res) => {
 
     // Analyze images with Bedrock
     const imageUrls = images.map(img => img.url);
-    const bedrockAnalysis = await bedrockImageAnalysisService.analyzePropertyImages(
+    const bedrockAnalysis = await getAIService().analyzePropertyImages(
       imageUrls,
       propertyDetails
     );
@@ -549,7 +599,7 @@ app.post('/api/analyze-images-by-urls', async (req, res) => {
     logger.info(`🔍 Analyzing ${imageUrls.length} images directly`);
 
     // Analyze images with Bedrock
-    const analysisResult = await bedrockImageAnalysisService.analyzePropertyImages(
+    const analysisResult = await getAIService().analyzePropertyImages(
       imageUrls,
       propertyDetails
     );
