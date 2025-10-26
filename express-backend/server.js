@@ -21,6 +21,8 @@ const { spawn } = require('child_process');
 const ComprehensiveAnalysisService = require('./services/comprehensive-analysis-service');
 const ImageService = require('./services/image-service');
 const ValidationService = require('./services/validation-service');
+const S3Service = require('./services/s3-service');
+const BedrockImageAnalysisService = require('./services/bedrock-image-analysis-service');
 
 // Initialize Express app
 const app = express();
@@ -111,6 +113,8 @@ const upload = multer({
 const comprehensiveAnalysisService = new ComprehensiveAnalysisService();
 const imageService = new ImageService();
 const validationService = new ValidationService();
+const s3Service = new S3Service();
+const bedrockImageAnalysisService = new BedrockImageAnalysisService();
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -300,7 +304,7 @@ app.post('/api/upload-and-analyze', upload.array('images', 5), async (req, res) 
   }
 });
 
-// Web scraping endpoint using Python scraper
+// Web scraping endpoint using Python scraper with S3 upload and Bedrock analysis
 app.post('/api/scrape', async (req, res) => {
   try {
     logger.info('Scraping request received', { 
@@ -308,7 +312,7 @@ app.post('/api/scrape', async (req, res) => {
       ip: req.ip 
     });
 
-    const { url, maxImages = 20 } = req.body;
+    const { url, maxImages = 20, analyzeWithBedrock = true } = req.body;
 
     if (!url) {
       return res.status(400).json({
@@ -327,32 +331,182 @@ app.post('/api/scrape', async (req, res) => {
       });
     }
 
-             // Call Python scraper
-             const result = await scrapeImagesWithPython(url, maxImages);
+    // Call Python scraper
+    const result = await scrapeImagesWithPython(url, maxImages);
 
-             if (result.images.length === 0) {
-               return res.status(404).json({
-                 error: 'No images found',
-                 message: 'No images could be scraped from the provided URL'
-               });
-             }
+    if (result.images.length === 0) {
+      return res.status(404).json({
+        error: 'No images found',
+        message: 'No images could be scraped from the provided URL'
+      });
+    }
 
-             res.json({
-               success: true,
-               message: `Successfully scraped ${result.images.length} images`,
-               images: result.images,
-               propertyDetails: result.propertyDetails || {},
-               count: result.images.length,
-               url: url
-             });
+    // Generate unique property ID
+    const propertyId = uuidv4();
+    
+    // Extract image URLs from scraped results
+    const imageUrls = result.images.map(img => img.url).filter(url => url);
+    
+    logger.info(`📸 Scraped ${imageUrls.length} images, uploading to S3...`);
+
+    // Upload images to S3
+    const uploadResult = await s3Service.uploadPropertyImages(
+      imageUrls, 
+      propertyId, 
+      result.propertyDetails
+    );
+
+    if (!uploadResult.success) {
+      logger.error('S3 upload failed', { error: uploadResult.error });
+      return res.status(500).json({
+        error: 'Upload failed',
+        message: 'Failed to upload images to S3',
+        details: uploadResult.error
+      });
+    }
+
+    logger.info(`✅ Successfully uploaded ${uploadResult.successfulUploads} images to S3`);
+
+    let bedrockAnalysis = null;
+    
+    // Analyze images with Bedrock if requested
+    if (analyzeWithBedrock && uploadResult.uploadedImages.length > 0) {
+      logger.info('🤖 Starting Bedrock image analysis...');
+      
+      // Get S3 URLs for uploaded images
+      const s3ImageUrls = uploadResult.uploadedImages.map(img => img.s3Url);
+      
+      bedrockAnalysis = await bedrockImageAnalysisService.analyzePropertyImages(
+        s3ImageUrls,
+        result.propertyDetails
+      );
+      
+      if (bedrockAnalysis.success) {
+        logger.info(`✅ Bedrock analysis completed with score: ${bedrockAnalysis.comprehensiveAnalysis.overall_score}/100`);
+      } else {
+        logger.error('Bedrock analysis failed', { error: bedrockAnalysis.error });
+      }
+    }
+
+    // Prepare response
+    const response = {
+      success: true,
+      message: `Successfully scraped and processed ${result.images.length} images`,
+      propertyId,
+      propertyDetails: result.propertyDetails || {},
+      scraping: {
+        url,
+        imagesFound: result.images.length,
+        images: result.images
+      },
+      s3Upload: {
+        bucketName: uploadResult.bucketName,
+        folderPath: uploadResult.folderPath,
+        uploadedImages: uploadResult.successfulUploads,
+        failedUploads: uploadResult.failedUploads,
+        uploadedImageUrls: uploadResult.uploadedImages.map(img => ({
+          filename: img.filename,
+          s3Url: img.s3Url,
+          size: img.size
+        }))
+      }
+    };
+
+    // Add Bedrock analysis if available
+    if (bedrockAnalysis) {
+      response.bedrockAnalysis = {
+        success: bedrockAnalysis.success,
+        overallScore: bedrockAnalysis.comprehensiveAnalysis?.overall_score || 0,
+        analyzedImages: bedrockAnalysis.analyzedImages || 0,
+        summary: bedrockAnalysis.comprehensiveAnalysis?.summary || 'Analysis completed',
+        keyStrengths: bedrockAnalysis.comprehensiveAnalysis?.key_strengths || [],
+        criticalIssues: bedrockAnalysis.comprehensiveAnalysis?.critical_issues || [],
+        recommendations: bedrockAnalysis.comprehensiveAnalysis?.recommendations || [],
+        estimatedCost: bedrockAnalysis.comprehensiveAnalysis?.estimated_cost || 'Contact consultant',
+        detailedAnalysis: bedrockAnalysis.comprehensiveAnalysis
+      };
+    }
+
+    res.json(response);
 
   } catch (error) {
     logger.error('Scraping error', { error: error.message, stack: error.stack });
-    res.status(200).json({
+    res.status(500).json({
       success: false,
-      message: 'Still scraping...',
-      images: [],
-      propertyDetails: {}
+      error: 'Processing failed',
+      message: 'An error occurred during scraping and analysis',
+      details: error.message
+    });
+  }
+});
+
+// Analyze existing S3 images endpoint
+app.post('/api/analyze-s3-images', async (req, res) => {
+  try {
+    logger.info('S3 image analysis request received', { ip: req.ip });
+
+    const { folderPath, propertyDetails = {} } = req.body;
+
+    if (!folderPath) {
+      return res.status(400).json({
+        error: 'No folder path provided',
+        message: 'Please provide the S3 folder path containing images'
+      });
+    }
+
+    // List images in the S3 folder
+    const images = await s3Service.listPropertyImages(folderPath);
+
+    if (images.length === 0) {
+      return res.status(404).json({
+        error: 'No images found',
+        message: 'No images found in the specified S3 folder'
+      });
+    }
+
+    logger.info(`🔍 Found ${images.length} images in S3 folder: ${folderPath}`);
+
+    // Analyze images with Bedrock
+    const imageUrls = images.map(img => img.url);
+    const bedrockAnalysis = await bedrockImageAnalysisService.analyzePropertyImages(
+      imageUrls,
+      propertyDetails
+    );
+
+    if (!bedrockAnalysis.success) {
+      logger.error('Bedrock analysis failed', { error: bedrockAnalysis.error });
+      return res.status(500).json({
+        error: 'Analysis failed',
+        message: 'Failed to analyze images with Bedrock',
+        details: bedrockAnalysis.error
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully analyzed ${bedrockAnalysis.analyzedImages} images`,
+      folderPath,
+      propertyDetails,
+      s3Images: images,
+      bedrockAnalysis: {
+        success: bedrockAnalysis.success,
+        overallScore: bedrockAnalysis.comprehensiveAnalysis?.overall_score || 0,
+        analyzedImages: bedrockAnalysis.analyzedImages || 0,
+        summary: bedrockAnalysis.comprehensiveAnalysis?.summary || 'Analysis completed',
+        keyStrengths: bedrockAnalysis.comprehensiveAnalysis?.key_strengths || [],
+        criticalIssues: bedrockAnalysis.comprehensiveAnalysis?.critical_issues || [],
+        recommendations: bedrockAnalysis.comprehensiveAnalysis?.recommendations || [],
+        estimatedCost: bedrockAnalysis.comprehensiveAnalysis?.estimated_cost || 'Contact consultant',
+        detailedAnalysis: bedrockAnalysis.comprehensiveAnalysis
+      }
+    });
+
+  } catch (error) {
+    logger.error('S3 analysis error', { error: error.message, stack: error.stack });
+    res.status(500).json({
+      error: 'Analysis failed',
+      message: 'Internal server error during S3 image analysis',
+      details: error.message
     });
   }
 });
@@ -606,7 +760,10 @@ app.listen(PORT, () => {
   logger.info(`   POST /api/upload - Upload images`);
   logger.info(`   POST /api/analyze - Analyze images`);
   logger.info(`   POST /api/upload-and-analyze - Upload and analyze in one request`);
-  logger.info(`   POST /api/scrape - Scrape images from URLs using Python scraper`);
+  logger.info(`   POST /api/scrape - Scrape images from URLs, upload to S3, and analyze with Bedrock`);
+  logger.info(`   POST /api/analyze-s3-images - Analyze existing S3 images with Bedrock`);
+  logger.info(`🪣 S3 Bucket: ${process.env.S3_BUCKET_NAME || 'accessible-ai-property-images'}`);
+  logger.info(`🤖 Bedrock Model: ${process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20240620-v1:0'}`);
 });
 
 // Graceful shutdown
