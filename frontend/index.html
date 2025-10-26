@@ -1076,6 +1076,7 @@
             <button class="analyze-btn" id="analyzeBtn" onclick="analyzeImages()" disabled>
                 🔍 Analyze Accessibility
             </button>
+            
 
             <!-- Results Section -->
             <div class="results-section" id="resultsSection" style="display: none;">
@@ -1211,7 +1212,7 @@
     <script>
         let selectedImages = [];
         let currentImageIndex = 0;
-        const API_BASE = 'http://localhost:3000';
+        const API_BASE = 'http://localhost:3001';
         const imageScraper = new ImageScraper();
 
         // Theme management
@@ -1726,17 +1727,132 @@
 
             const analyzeBtn = document.getElementById('analyzeBtn');
             const resultsSection = document.getElementById('resultsSection');
+            const resultsContent = document.getElementById('resultsContent');
 
             // Show loading state
             analyzeBtn.disabled = true;
             analyzeBtn.textContent = '🔄 Analyzing...';
             resultsSection.style.display = 'block';
+            resultsContent.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing images for accessibility features...</p>
+                </div>
+            `;
 
-            // Simulate analysis delay
-            setTimeout(() => {
+            try {
+                // Prepare images for analysis (limit to first 10 for performance)
+                const imagesToAnalyze = selectedImages.slice(0, 10);
+                const imagesForAnalysis = imagesToAnalyze.map(img => {
+                    const base64Data = img.dataUrl.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+                    return {
+                        filename: img.filename,
+                        base64: base64Data,
+                        size: base64Data.length,
+                        mimetype: 'image/jpeg'
+                    };
+                });
+
+                // Debug: Log what we're sending
+                console.log('Sending analysis request:', {
+                    imageCount: imagesForAnalysis.length,
+                    firstImage: {
+                        filename: imagesForAnalysis[0]?.filename,
+                        base64Length: imagesForAnalysis[0]?.base64?.length,
+                        size: imagesForAnalysis[0]?.size,
+                        mimetype: imagesForAnalysis[0]?.mimetype
+                    }
+                });
+
+                // Call the Express backend API
+                const response = await fetch(`${API_BASE}/api/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        images: imagesForAnalysis
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Analysis failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                // Display results
+                displayAnalysisResults(result);
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+                resultsContent.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Analysis Failed</h4>
+                        <p>${error.message}</p>
+                        <p>Please try again or check if the backend server is running.</p>
+                    </div>
+                `;
+            } finally {
                 analyzeBtn.disabled = false;
                 analyzeBtn.textContent = '🔍 Analyze Accessibility';
-            }, 2000);
+            }
+        }
+
+        function displayAnalysisResults(result) {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            if (!result.analysis) {
+                resultsContent.innerHTML = `
+                    <div class="error">
+                        <h4>❌ No Analysis Results</h4>
+                        <p>The analysis completed but no results were returned.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const analysis = result.analysis;
+            const overallScore = analysis.overall_score || 0;
+            
+            // Determine score class
+            let scoreClass = 'score-poor';
+            if (overallScore >= 90) scoreClass = 'score-excellent';
+            else if (overallScore >= 75) scoreClass = 'score-good';
+            else if (overallScore >= 60) scoreClass = 'score-fair';
+
+            resultsContent.innerHTML = `
+                <div class="score-display">
+                    <div class="score-circle ${scoreClass}">
+                        ${overallScore}
+                    </div>
+                    <h3>Overall Accessibility Score</h3>
+                    <p>Based on analysis of ${analysis.analyzed_images || selectedImages.length} images</p>
+                </div>
+                
+                <div class="results-grid">
+                    <div class="result-card">
+                        <h3>✅ Positive Features</h3>
+                        <ul class="result-list">
+                            ${(analysis.positive_features || []).map(feature => `<li class="positive">${feature}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>⚠️ Areas for Improvement</h3>
+                        <ul class="result-list">
+                            ${(analysis.improvement_areas || []).map(area => `<li class="negative">${area}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>📋 Recommendations</h3>
+                        <ul class="result-list">
+                            ${(analysis.recommendations || []).map(rec => `<li class="neutral">${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
         }
 
         function toggleDropdown(factor) {

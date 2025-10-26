@@ -76,8 +76,8 @@ def fetch_page_content(url):
         # Create a session to maintain cookies
         session = requests.Session()
         
-        # First, try to get the main page
-        response = session.get(url, headers=get_headers(), timeout=30)
+        # First, try to get the main page with shorter timeout
+        response = session.get(url, headers=get_headers(), timeout=10)
         
         # If we get a 403, try with a different approach
         if response.status_code == 403:
@@ -88,7 +88,7 @@ def fetch_page_content(url):
                 'Referer': 'https://www.zillow.com/',
                 'Origin': 'https://www.zillow.com'
             })
-            response = session.get(url, headers=headers, timeout=30)
+            response = session.get(url, headers=headers, timeout=10)
         
         response.raise_for_status()
         return response.text
@@ -123,22 +123,19 @@ def extract_json_from_page(html_content):
             except (json.JSONDecodeError, AttributeError):
                 continue
         
-        # Method 2: Look for all script tags and search for JSON patterns
+        # Method 2: Look for all script tags and search for JSON patterns (optimized)
         script_tags = soup.find_all('script')
         for script in script_tags:
             if script.string:
                 script_content = script.string
                 
-                # Look for various JSON patterns that might contain image data
+                # Look for the most common patterns first (optimized order)
                 patterns = [
                     r'window\.__INITIAL_STATE__\s*=\s*({.*?});',
-                    r'window\.__APP_STATE__\s*=\s*({.*?});',
-                    r'window\.__PRELOADED_STATE__\s*=\s*({.*?});',
-                    r'window\.__APOLLO_STATE__\s*=\s*({.*?});',
                     r'"photoGallery":\s*(\[.*?\])',
                     r'"images":\s*(\[.*?\])',
-                    r'"photos":\s*(\[.*?\])',
-                    r'"media":\s*(\[.*?\])'
+                    r'window\.__APP_STATE__\s*=\s*({.*?});',
+                    r'"photos":\s*(\[.*?\])'
                 ]
                 
                 for pattern in patterns:
