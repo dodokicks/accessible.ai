@@ -3,9 +3,6 @@
  * Hackathon Alternative - Much faster to implement and debug
  */
 
-// Load environment variables
-require('dotenv').config({ path: '../.env' });
-
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
