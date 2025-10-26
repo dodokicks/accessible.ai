@@ -859,16 +859,19 @@ def extract_property_details(html_content, url):
             except Exception as e:
                 print(f"Error parsing Zillow URL: {e}")
         
-        # Look for ZIP code in the HTML content
+        # Look for ZIP code in the HTML content with better patterns
         import re
         zip_patterns = [
             r'ZIP[:\s]*(\d{5})',  # ZIP: 12345
             r'Postal[:\s]*(\d{5})',  # Postal: 12345
+            r'ZIP\s*Code[:\s]*(\d{5})',  # ZIP Code: 12345
+            r'(\d{5})\s*ZIP',  # 12345 ZIP
+            r'(\d{5})\s*Postal',  # 12345 Postal
             r'\b(\d{5})\b',  # 5-digit ZIP code (but validate it's realistic)
         ]
         
         for pattern in zip_patterns:
-            zip_matches = re.findall(pattern, html_content)
+            zip_matches = re.findall(pattern, html_content, re.IGNORECASE)
             if zip_matches:
                 # Take the first valid ZIP code found
                 for zip_match in zip_matches:
@@ -881,54 +884,133 @@ def extract_property_details(html_content, url):
                 if details['zipCode'] != '00000':
                     break
         
-        # Look for property stats in the HTML
+        # Also try to extract ZIP from the URL if it's a Zillow URL
+        if details['zipCode'] == '00000' and 'zillow.com' in url:
+            # Look for ZIP in the URL path
+            url_zip_match = re.search(r'(\d{5})', url)
+            if url_zip_match:
+                zip_code = url_zip_match.group(1)
+                zip_num = int(zip_code)
+                if 501 <= zip_num <= 99950:
+                    details['zipCode'] = zip_code
+        
+        # Look for property stats in the HTML with more comprehensive selectors
         stats_selectors = [
             '[data-testid="bed-bath-beyond"]',
             '.property-stats',
             '.listing-stats',
             '.home-summary',
             '.property-details',
-            '.listing-details'
+            '.listing-details',
+            '.ds-bed-bath-beyond',
+            '.ds-home-fact-list',
+            '.ds-home-fact-list-item',
+            '.ds-home-fact-container',
+            '.ds-home-fact',
+            '.ds-home-fact-label',
+            '.ds-home-fact-value'
         ]
         
         for selector in stats_selectors:
-            element = soup.select_one(selector)
-            if element:
+            elements = soup.select(selector)
+            for element in elements:
                 text = element.get_text()
                 
                 # Look for bedroom count
                 bed_match = re.search(r'(\d+)\s*(?:bed|br|bedroom)', text, re.IGNORECASE)
-                if bed_match:
+                if bed_match and details['bedrooms'] == 'N/A':
                     details['bedrooms'] = bed_match.group(1)
                 
                 # Look for bathroom count
                 bath_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)', text, re.IGNORECASE)
-                if bath_match:
+                if bath_match and details['bathrooms'] == 'N/A':
                     details['bathrooms'] = bath_match.group(1)
                 
                 # Look for square footage
                 sqft_match = re.search(r'(\d+(?:,\d+)*)\s*(?:sq\s*ft|square\s*feet)', text, re.IGNORECASE)
-                if sqft_match:
+                if sqft_match and details['squareFeet'] == 'N/A':
                     details['squareFeet'] = sqft_match.group(1).replace(',', '')
                 
                 # Look for year built
                 year_match = re.search(r'(?:built|year)[:\s]*(\d{4})', text, re.IGNORECASE)
-                if year_match:
+                if year_match and details['yearBuilt'] == 'N/A':
                     details['yearBuilt'] = year_match.group(1)
                 
                 # Look for price
                 price_match = re.search(r'\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)', text)
+                if price_match and details['price'] == 'N/A':
+                    details['price'] = f"${price_match.group(1)}"
+        
+        # Also search the entire HTML content for property details
+        full_text = soup.get_text()
+        
+        # Look for bedroom count in full text
+        if details['bedrooms'] == 'N/A':
+            bed_patterns = [
+                r'(\d+)\s*(?:bed|br|bedroom)s?\b',
+                r'(\d+)\s*bed\b',
+                r'(\d+)\s*br\b',
+                r'(\d+)\s*beds?\b'
+            ]
+            for pattern in bed_patterns:
+                bed_match = re.search(pattern, full_text, re.IGNORECASE)
+                if bed_match:
+                    bed_count = int(bed_match.group(1))
+                    # Validate bedroom count (reasonable range)
+                    if 1 <= bed_count <= 20:
+                        details['bedrooms'] = str(bed_count)
+                        break
+        
+        # Look for bathroom count in full text
+        if details['bathrooms'] == 'N/A':
+            bath_patterns = [
+                r'(\d+(?:\.\d+)?)\s*(?:bath|ba|bathroom)s?\b',
+                r'(\d+(?:\.\d+)?)\s*bath\b',
+                r'(\d+(?:\.\d+)?)\s*ba\b'
+            ]
+            for pattern in bath_patterns:
+                bath_match = re.search(pattern, full_text, re.IGNORECASE)
+                if bath_match:
+                    details['bathrooms'] = bath_match.group(1)
+                    break
+        
+        # Look for square footage in full text
+        if details['squareFeet'] == 'N/A':
+            sqft_patterns = [
+                r'(\d+(?:,\d+)*)\s*(?:sq\s*ft|square\s*feet)',
+                r'(\d+(?:,\d+)*)\s*sqft',
+                r'(\d+(?:,\d+)*)\s*sq\.?\s*ft'
+            ]
+            for pattern in sqft_patterns:
+                sqft_match = re.search(pattern, full_text, re.IGNORECASE)
+                if sqft_match:
+                    details['squareFeet'] = sqft_match.group(1).replace(',', '')
+                    break
+        
+        # Look for price in full text
+        if details['price'] == 'N/A':
+            price_patterns = [
+                r'\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+                r'Price[:\s]*\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)',
+                r'Listed[:\s]*\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)'
+            ]
+            for pattern in price_patterns:
+                price_match = re.search(pattern, full_text)
                 if price_match:
                     details['price'] = f"${price_match.group(1)}"
+                    break
         
         # If no valid ZIP code was found or found an invalid one, use city-specific defaults
         if details['zipCode'] == '00000' or details['zipCode'] == 'Unknown' or details['zipCode'] == '10000':
-            if details['city'].lower() == 'santa clara':
+            city_lower = details['city'].lower()
+            if 'santa clara' in city_lower:
                 details['zipCode'] = '95050'  # Santa Clara, CA ZIP
-            elif details['city'].lower() == 'san jose':
+            elif 'san jose' in city_lower:
                 details['zipCode'] = '95110'  # San Jose, CA ZIP
-            elif details['city'].lower() == 'san francisco':
+            elif 'san francisco' in city_lower:
                 details['zipCode'] = '94102'  # San Francisco, CA ZIP
+            elif 'clara' in city_lower:  # Handle "Clara" from "Santa Clara"
+                details['zipCode'] = '95050'  # Santa Clara, CA ZIP
             else:
                 details['zipCode'] = '00000'  # Unknown
         
