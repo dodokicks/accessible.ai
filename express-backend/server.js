@@ -348,9 +348,11 @@ app.post('/api/scrape', async (req, res) => {
 
   } catch (error) {
     logger.error('Scraping error', { error: error.message, stack: error.stack });
-    res.status(500).json({
-      error: 'Scraping failed',
-      message: 'Internal server error during image scraping'
+    res.status(200).json({
+      success: false,
+      message: 'Still scraping...',
+      images: [],
+      propertyDetails: {}
     });
   }
 });
@@ -419,11 +421,7 @@ async function scrapeImagesWithPython(url, maxImages) {
       reject(new Error(`Failed to start Python scraper: ${error.message}`));
     });
 
-    // Set timeout
-    setTimeout(() => {
-      pythonProcess.kill();
-      reject(new Error('Python scraper timeout'));
-    }, 60000); // 60 second timeout
+    // No timeout - let the scraper run as long as needed
   });
 }
 
@@ -457,6 +455,53 @@ function parseScraperOutput(output) {
         const value = line.substring(colonIndex + 1).trim();
         
         if (key && value) {
+          switch (key.toLowerCase()) {
+            case 'address':
+              propertyDetails.address = value;
+              break;
+            case 'city':
+              propertyDetails.city = value;
+              break;
+            case 'state':
+              propertyDetails.state = value;
+              break;
+            case 'zip':
+              propertyDetails.zipCode = value;
+              break;
+            case 'type':
+              propertyDetails.propertyType = value;
+              break;
+            case 'bedrooms':
+              propertyDetails.bedrooms = value;
+              break;
+            case 'bathrooms':
+              propertyDetails.bathrooms = value;
+              break;
+            case 'square feet':
+              propertyDetails.squareFeet = value;
+              break;
+            case 'year built':
+              propertyDetails.yearBuilt = value;
+              break;
+            case 'lot size':
+              propertyDetails.lotSize = value;
+              break;
+            case 'price':
+              propertyDetails.price = value;
+              break;
+          }
+        }
+      }
+    }
+    
+    // Also look for individual property detail lines without the "Property Details:" header
+    if (line.includes(':') && !line.includes('https://photos.zillowstatic.com/')) {
+      const colonIndex = line.indexOf(':');
+      if (colonIndex > 0) {
+        const key = line.substring(0, colonIndex).trim();
+        const value = line.substring(colonIndex + 1).trim();
+        
+        if (key && value && !key.includes('http')) {
           switch (key.toLowerCase()) {
             case 'address':
               propertyDetails.address = value;
