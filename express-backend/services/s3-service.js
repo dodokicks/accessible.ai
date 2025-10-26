@@ -9,16 +9,36 @@ const fs = require('fs');
 
 class S3Service {
   constructor() {
+    // Load environment variables
+    require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+    
+    // Get credentials with fallbacks
+    const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+    const region = process.env.AWS_DEFAULT_REGION || 'us-east-1';
+    
+    // Debug credential loading
+    console.log('S3 Credentials Debug:');
+    console.log('  S3_ACCESS_KEY_ID:', accessKeyId ? 'SET' : 'NOT SET');
+    console.log('  S3_SECRET_ACCESS_KEY:', secretAccessKey ? 'SET' : 'NOT SET');
+    console.log('  AWS_DEFAULT_REGION:', region);
+    
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error('AWS credentials not found. Please check your .env file.');
+    }
+    
     this.s3Client = new S3Client({
-      region: process.env.AWS_DEFAULT_REGION || 'us-east-1',
+      region: region,
       credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey
       }
     });
     
     this.bucketName = process.env.S3_BUCKET_NAME || 'accessible-ai-property-images';
-    this.region = process.env.AWS_DEFAULT_REGION || 'us-east-1';
+    this.region = region;
+    
+    console.log(`S3 Service initialized with bucket: ${this.bucketName}, region: ${this.region}`);
   }
 
   /**
@@ -28,12 +48,13 @@ class S3Service {
     try {
       // Check if bucket exists
       await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
-      console.log(`Bucket ${this.bucketName} already exists`);
+      console.log(`✅ Bucket ${this.bucketName} exists and is accessible`);
       return true;
     } catch (error) {
-      if (error.name === 'NotFound') {
-        // Bucket doesn't exist, create it
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+        // Bucket doesn't exist, try to create it
         try {
+          console.log(`Creating S3 bucket: ${this.bucketName}`);
           const createBucketParams = {
             Bucket: this.bucketName,
             CreateBucketConfiguration: {
@@ -45,9 +66,19 @@ class S3Service {
           console.log(`✅ Created S3 bucket: ${this.bucketName}`);
           return true;
         } catch (createError) {
-          console.error('Error creating bucket:', createError);
-          throw createError;
+          if (createError.$metadata?.httpStatusCode === 403) {
+            // Access denied for bucket creation - try to use bucket anyway
+            console.log(`⚠️ Cannot create bucket ${this.bucketName} due to access restrictions, attempting to use existing bucket`);
+            return true;
+          } else {
+            console.error('Error creating bucket:', createError);
+            throw createError;
+          }
         }
+      } else if (error.$metadata?.httpStatusCode === 403) {
+        // Access denied - bucket might exist but we can't check it
+        console.log(`⚠️ Cannot verify bucket ${this.bucketName} due to access restrictions, assuming it exists`);
+        return true;
       } else {
         console.error('Error checking bucket:', error);
         throw error;

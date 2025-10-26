@@ -349,37 +349,52 @@ app.post('/api/scrape', async (req, res) => {
     
     logger.info(`📸 Scraped ${imageUrls.length} images, uploading to S3...`);
 
-    // Upload images to S3
-    const uploadResult = await s3Service.uploadPropertyImages(
-      imageUrls, 
-      propertyId, 
-      result.propertyDetails
-    );
-
-    if (!uploadResult.success) {
-      logger.error('S3 upload failed', { error: uploadResult.error });
-      return res.status(500).json({
-        error: 'Upload failed',
-        message: 'Failed to upload images to S3',
-        details: uploadResult.error
+    // Upload images to S3 (with fallback for permission issues)
+    let uploadResult = null;
+    let s3UploadSuccess = false;
+    
+    try {
+      uploadResult = await s3Service.uploadPropertyImages(
+        imageUrls, 
+        propertyId, 
+        result.propertyDetails
+      );
+      
+      if (uploadResult.success) {
+        s3UploadSuccess = true;
+        logger.info(`✅ Successfully uploaded ${uploadResult.successfulUploads} images to S3`);
+      } else {
+        throw new Error(uploadResult.error || 'S3 upload failed');
+      }
+    } catch (s3Error) {
+      logger.warn('S3 upload failed, continuing without S3 storage', { 
+        error: s3Error.message,
+        details: 'Images will be analyzed directly from URLs'
       });
+      // Continue without S3 upload - analyze images directly from URLs
     }
-
-    logger.info(`✅ Successfully uploaded ${uploadResult.successfulUploads} images to S3`);
 
     let bedrockAnalysis = null;
     
     // Analyze images with Bedrock if requested
-    if (analyzeWithBedrock && uploadResult.uploadedImages.length > 0) {
+    if (analyzeWithBedrock) {
       logger.info('🤖 Starting Bedrock image analysis...');
       
-      // Get S3 URLs for uploaded images
-      const s3ImageUrls = uploadResult.uploadedImages.map(img => img.s3Url);
-      
-      bedrockAnalysis = await bedrockImageAnalysisService.analyzePropertyImages(
-        s3ImageUrls,
-        result.propertyDetails
-      );
+      if (s3UploadSuccess && uploadResult.uploadedImages.length > 0) {
+        // Use S3 URLs if upload was successful
+        const s3ImageUrls = uploadResult.uploadedImages.map(img => img.s3Url);
+        bedrockAnalysis = await bedrockImageAnalysisService.analyzePropertyImages(
+          s3ImageUrls,
+          result.propertyDetails
+        );
+      } else {
+        // Fallback: analyze images directly from original URLs
+        logger.info('📸 Analyzing images directly from scraped URLs (S3 fallback)');
+        bedrockAnalysis = await bedrockImageAnalysisService.analyzePropertyImages(
+          imageUrls,
+          result.propertyDetails
+        );
+      }
       
       if (bedrockAnalysis.success) {
         logger.info(`✅ Bedrock analysis completed with score: ${bedrockAnalysis.comprehensiveAnalysis.overall_score}/100`);
@@ -399,7 +414,8 @@ app.post('/api/scrape', async (req, res) => {
         imagesFound: result.images.length,
         images: result.images
       },
-      s3Upload: {
+      s3Upload: s3UploadSuccess ? {
+        success: true,
         bucketName: uploadResult.bucketName,
         folderPath: uploadResult.folderPath,
         uploadedImages: uploadResult.successfulUploads,
@@ -409,6 +425,11 @@ app.post('/api/scrape', async (req, res) => {
           s3Url: img.s3Url,
           size: img.size
         }))
+      } : {
+        success: false,
+        error: 'S3 upload failed due to permissions',
+        fallback: 'Images analyzed directly from URLs',
+        bucketName: process.env.S3_BUCKET_NAME || 'accessible-ai-property-images'
       }
     };
 
@@ -511,6 +532,46 @@ app.post('/api/analyze-s3-images', async (req, res) => {
   }
 });
 
+// Analyze images by direct URLs endpoint
+app.post('/api/analyze-images-by-urls', async (req, res) => {
+  try {
+    logger.info('Direct image analysis request received', { ip: req.ip });
+
+    const { imageUrls, propertyDetails = {} } = req.body;
+
+    if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+      return res.status(400).json({
+        error: 'No image URLs provided',
+        message: 'Please provide an array of image URLs to analyze'
+      });
+    }
+
+    logger.info(`🔍 Analyzing ${imageUrls.length} images directly`);
+
+    // Analyze images with Bedrock
+    const analysisResult = await bedrockImageAnalysisService.analyzePropertyImages(
+      imageUrls,
+      propertyDetails
+    );
+
+    res.json({
+      success: true,
+      message: `Analyzed ${imageUrls.length} images`,
+      imageCount: imageUrls.length,
+      analysis: analysisResult,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Error analyzing images by URLs:', error);
+    res.status(500).json({
+      error: 'Analysis failed',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Helper function to call Python scraper
 async function scrapeImagesWithPython(url, maxImages) {
   return new Promise((resolve, reject) => {
@@ -524,7 +585,7 @@ async function scrapeImagesWithPython(url, maxImages) {
       maxImages 
     });
 
-    const pythonProcess = spawn(pythonPath, [scraperPath, url, '--download'], {
+    const pythonProcess = spawn(pythonPath, [scraperPath, url], {
       cwd: path.join(__dirname, '..'),
       stdio: ['pipe', 'pipe', 'pipe']
     });
@@ -545,7 +606,11 @@ async function scrapeImagesWithPython(url, maxImages) {
                  try {
                    // Parse the output to extract image URLs and property details
                    const { imageUrls, propertyDetails } = parseScraperOutput(stdout);
-                   const processedImages = imageUrls.map((url, index) => ({
+                   
+                   // Limit images based on maxImages parameter
+                   const limitedImageUrls = maxImages ? imageUrls.slice(0, maxImages) : imageUrls;
+                   
+                   const processedImages = limitedImageUrls.map((url, index) => ({
                      filename: `scraped_image_${index + 1}.jpg`,
                      url: url,
                      index: index
@@ -553,6 +618,8 @@ async function scrapeImagesWithPython(url, maxImages) {
                    
                    logger.info('Python scraper completed successfully', { 
                      imageCount: processedImages.length,
+                     totalImagesFound: imageUrls.length,
+                     maxImages: maxImages,
                      propertyDetails: propertyDetails,
                      stdout: stdout.substring(0, 500) // Log first 500 chars of output
                    });

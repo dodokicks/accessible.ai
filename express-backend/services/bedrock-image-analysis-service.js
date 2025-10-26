@@ -4,18 +4,68 @@
  */
 
 const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
+const path = require('path');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 class BedrockImageAnalysisService {
   constructor() {
+    // Load environment variables
+    require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+    
+    // Get credentials with fallbacks
+    const accessKeyId = process.env.BEDROCK_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.BEDROCK_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+    const region = process.env.AWS_DEFAULT_REGION || 'us-east-1';
+    
+    // Debug credential loading
+    console.log('Bedrock Credentials Debug:');
+    console.log('  BEDROCK_ACCESS_KEY_ID:', accessKeyId ? 'SET' : 'NOT SET');
+    console.log('  BEDROCK_SECRET_ACCESS_KEY:', secretAccessKey ? 'SET' : 'NOT SET');
+    console.log('  AWS_DEFAULT_REGION:', region);
+    
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error('AWS Bedrock credentials not found. Please check your .env file.');
+    }
+    
     this.bedrockClient = new BedrockRuntimeClient({
-      region: process.env.AWS_DEFAULT_REGION || 'us-east-1',
+      region: region,
       credentials: {
-        accessKeyId: process.env.BEDROCK_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey
       }
     });
     
     this.modelId = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20240620-v1:0';
+    
+    console.log(`Bedrock Service initialized with model: ${this.modelId}, region: ${region}`);
+  }
+
+  /**
+   * Download image and convert to base64
+   * @param {string} imageUrl - URL of the image to download
+   * @returns {Promise<string>} - Base64 encoded image data
+   */
+  async downloadImageAsBase64(imageUrl) {
+    try {
+      console.log(`📥 Downloading image: ${imageUrl}`);
+      const response = await fetch(imageUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      
+      // Determine MIME type from response headers or URL
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      
+      return `data:${contentType};base64,${base64}`;
+      
+    } catch (error) {
+      console.error(`Error downloading image ${imageUrl}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -27,6 +77,9 @@ class BedrockImageAnalysisService {
   async analyzeImage(imageUrl, imageDescription = '') {
     try {
       console.log(`🔍 Analyzing image: ${imageUrl}`);
+      
+      // Download image and convert to base64
+      const base64Image = await this.downloadImageAsBase64(imageUrl);
       
       const prompt = this.buildAccessibilityPrompt(imageDescription);
       
@@ -48,8 +101,9 @@ class BedrockImageAnalysisService {
                 {
                   type: 'image',
                   source: {
-                    type: 'url',
-                    url: imageUrl
+                    type: 'base64',
+                    media_type: 'image/jpeg',
+                    data: base64Image.split(',')[1] // Remove data:image/jpeg;base64, prefix
                   }
                 }
               ]
@@ -96,13 +150,33 @@ class BedrockImageAnalysisService {
     try {
       console.log(`🏠 Analyzing property with ${imageUrls.length} images`);
       
-      // Analyze each image
-      const analysisPromises = imageUrls.map(async (imageUrl, index) => {
-        const description = this.getImageDescription(index, imageUrls.length);
-        return await this.analyzeImage(imageUrl, description);
-      });
-      
-      const imageAnalyses = await Promise.all(analysisPromises);
+      // Analyze each image sequentially to avoid rate limiting
+      const imageAnalyses = [];
+      for (let i = 0; i < imageUrls.length; i++) {
+        const imageUrl = imageUrls[i];
+        const description = this.getImageDescription(i, imageUrls.length);
+        
+        console.log(`🔍 Analyzing image ${i + 1}/${imageUrls.length}: ${imageUrl}`);
+        
+        try {
+          const result = await this.analyzeImage(imageUrl, description);
+          imageAnalyses.push(result);
+          
+          // Add delay between requests to avoid rate limiting
+          if (i < imageUrls.length - 1) {
+            console.log('⏳ Waiting 2 seconds before next analysis...');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        } catch (error) {
+          console.error(`Error analyzing image ${i + 1}:`, error);
+          imageAnalyses.push({
+            success: false,
+            imageUrl,
+            error: error.message,
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
       
       // Filter successful analyses
       const successfulAnalyses = imageAnalyses.filter(result => result.success);
@@ -111,13 +185,21 @@ class BedrockImageAnalysisService {
       console.log(`✅ Successfully analyzed ${successfulAnalyses.length}/${imageUrls.length} images`);
       
       // Generate comprehensive property analysis
+      console.log('🔍 Generating comprehensive analysis...');
+      console.log('Successful analyses:', successfulAnalyses.length);
+      console.log('First analysis structure:', JSON.stringify(successfulAnalyses[0], null, 2));
+      
       const comprehensiveAnalysis = await this.generateComprehensiveAnalysis(
         successfulAnalyses, 
         propertyDetails
       );
       
+      console.log('Comprehensive analysis result:', JSON.stringify(comprehensiveAnalysis, null, 2));
+      
       return {
         success: true,
+        overallScore: comprehensiveAnalysis?.accessibility_score || 0,
+        analysisSummary: comprehensiveAnalysis?.overall_assessment || 'Analysis completed',
         propertyDetails,
         totalImages: imageUrls.length,
         analyzedImages: successfulAnalyses.length,
@@ -133,6 +215,8 @@ class BedrockImageAnalysisService {
       return {
         success: false,
         error: error.message,
+        overallScore: 0,
+        analysisSummary: 'Analysis failed',
         propertyDetails,
         timestamp: new Date().toISOString()
       };
@@ -282,8 +366,12 @@ Be specific and actionable in your recommendations.`;
       }
       
       // Calculate average scores
-      const scores = imageAnalyses.map(analysis => analysis.analysis.accessibility_score || 50);
+      console.log('Image analyses structure:', JSON.stringify(imageAnalyses, null, 2));
+      const scores = imageAnalyses.map(analysis => analysis.analysis?.accessibility_score || 50);
       const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+      
+      console.log('Scores:', scores);
+      console.log('Average score:', averageScore);
       
       // Aggregate features
       const allStrengths = imageAnalyses.flatMap(analysis => 
