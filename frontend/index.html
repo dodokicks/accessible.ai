@@ -13,42 +13,182 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 25%, var(--bg-tertiary) 50%, var(--bg-secondary) 75%, var(--bg-primary) 100%);
             min-height: 100vh;
             padding: 20px;
-            color: #e0e0e0;
+            color: var(--text-primary);
+            transition: all 0.3s ease;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: #1e1e2e;
+            background: rgba(var(--bg-secondary), 0.8);
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 40px var(--shadow-color);
             overflow: hidden;
-            border: 1px solid #333;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
         }
 
         .header {
-            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary) 25%, var(--accent-secondary) 50%, var(--accent-secondary) 75%, var(--accent-primary) 100%);
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(255,255,255,0.1) 100%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { transform: translateX(-100%); }
+            50% { transform: translateX(100%); }
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(var(--accent-primary), 0.2);
+            border: 2px solid rgba(var(--accent-primary), 0.3);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(var(--accent-primary), 0.3);
+            border-color: rgba(var(--accent-primary), 0.5);
+            transform: scale(1.1);
+        }
+
+        .theme-toggle:active {
+            transform: scale(0.95);
+        }
+
+        /* Theme Variables */
+        :root {
+            --bg-primary: #1e293b;
+            --bg-secondary: #334155;
+            --bg-tertiary: #475569;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --accent-primary: #4c63d2;
+            --accent-secondary: #8b5cf6;
+            --border-color: rgba(148, 163, 184, 0.2);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Light Theme */
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --accent-primary: #3b82f6;
+            --accent-secondary: #8b5cf6;
+            --border-color: rgba(148, 163, 184, 0.3);
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        /* Dark Theme (Default) */
+        [data-theme="dark"] {
+            --bg-primary: #1e293b;
+            --bg-secondary: #334155;
+            --bg-tertiary: #475569;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --accent-primary: #4c63d2;
+            --accent-secondary: #8b5cf6;
+            --border-color: rgba(148, 163, 184, 0.2);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        /* Ocean Theme */
+        [data-theme="ocean"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #e0f2fe;
+            --text-secondary: #b3e5fc;
+            --accent-primary: #0891b2;
+            --accent-secondary: #06b6d4;
+            --border-color: rgba(6, 182, 212, 0.2);
+            --shadow-color: rgba(0, 0, 0, 0.4);
+        }
+
+        /* Forest Theme */
+        [data-theme="forest"] {
+            --bg-primary: #0f1419;
+            --bg-secondary: #1a202c;
+            --bg-tertiary: #2d3748;
+            --text-primary: #f0fff4;
+            --text-secondary: #c6f6d5;
+            --accent-primary: #38a169;
+            --accent-secondary: #68d391;
+            --border-color: rgba(56, 161, 105, 0.2);
+            --shadow-color: rgba(0, 0, 0, 0.4);
+        }
+
+        /* Sunset Theme */
+        [data-theme="sunset"] {
+            --bg-primary: #1a0f0f;
+            --bg-secondary: #2d1b1b;
+            --bg-tertiary: #4a2c2c;
+            --text-primary: #fef2f2;
+            --text-secondary: #fecaca;
+            --accent-primary: #dc2626;
+            --accent-secondary: #f97316;
+            --border-color: rgba(220, 38, 38, 0.2);
+            --shadow-color: rgba(0, 0, 0, 0.4);
         }
 
         .header h1 {
             font-size: 2.5rem;
             margin-bottom: 10px;
             font-weight: 700;
+            position: relative;
+            z-index: 1;
         }
 
         .header p {
             font-size: 1.1rem;
             opacity: 0.9;
+            position: relative;
+            z-index: 1;
         }
 
         .main-content {
             padding: 40px;
+            background: rgba(var(--bg-tertiary), 0.3);
+            transition: all 0.3s ease;
         }
 
         .content-layout {
@@ -56,6 +196,85 @@
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             margin-bottom: 40px;
+        }
+        
+        /* Enhanced Responsive Design */
+        @media (max-width: 768px) {
+            .content-layout {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .main-content {
+                padding: 20px;
+            }
+            
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .header p {
+                font-size: 1rem;
+            }
+            
+            .upload-card {
+                padding: 20px;
+            }
+            
+            .input-card {
+                padding: 20px;
+            }
+            
+            .image-container {
+                height: 300px;
+            }
+            
+            .image-container img {
+                height: 300px;
+            }
+            
+            .image-skeleton {
+                height: 300px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .upload-card {
+                padding: 15px;
+            }
+            
+            .input-card {
+                padding: 15px;
+            }
+            
+            .image-container {
+                height: 250px;
+            }
+            
+            .image-container img {
+                height: 250px;
+            }
+            
+            .image-skeleton {
+                height: 250px;
+            }
         }
 
         .image-display-section {
@@ -321,57 +540,65 @@
         }
 
         .upload-card {
-            background: #2d3748;
-            border: 1px solid #4a5568;
+            background: linear-gradient(135deg, rgba(var(--bg-tertiary), 0.8) 0%, rgba(var(--bg-secondary), 0.6) 100%);
+            border: 1px solid var(--border-color);
             border-radius: 15px;
             padding: 25px;
             transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px var(--shadow-color);
         }
 
         .upload-card:hover {
-            border-color: #4facfe;
-            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.1);
+            border-color: #5a67d8;
+            box-shadow: 0 15px 35px rgba(90, 103, 216, 0.3);
+            background: linear-gradient(135deg, rgba(51, 65, 85, 0.9) 0%, rgba(71, 85, 105, 0.7) 100%);
+            transform: translateY(-2px);
         }
 
         .upload-card h3 {
-            color: #e0e0e0;
+            color: var(--text-primary);
             margin-bottom: 15px;
             font-size: 1.2rem;
+            font-weight: 600;
         }
 
         .upload-card p {
-            color: #a0a0a0;
+            color: var(--text-secondary);
             margin-bottom: 20px;
         }
 
         .input-card {
-            border: 2px dashed #4a5568;
+            border: 2px dashed var(--accent-primary);
             border-radius: 15px;
             padding: 30px;
             text-align: center;
             transition: all 0.3s ease;
             cursor: pointer;
-            background: #2d3748;
+            background: linear-gradient(135deg, rgba(var(--accent-primary), 0.1) 0%, rgba(var(--accent-primary), 0.05) 100%);
         }
 
         .input-card:hover {
-            border-color: #4facfe;
-            background: #3a4552;
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.08) 100%);
+            transform: scale(1.02);
         }
 
         .input-card.dragover {
-            border-color: #4facfe;
-            background: #2a3441;
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(102, 126, 234, 0.1) 100%);
+            transform: scale(1.05);
         }
 
         .input-card h3 {
-            color: #e0e0e0;
+            color: var(--text-primary);
             margin-bottom: 15px;
             font-size: 1.3rem;
+            font-weight: 600;
         }
 
         .input-card p {
-            color: #a0a0a0;
+            color: var(--text-secondary);
             margin-bottom: 20px;
         }
 
@@ -380,40 +607,45 @@
         }
 
         .upload-btn {
-            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+            background: linear-gradient(135deg, #4c63d2 0%, #5a67d8 50%, #667eea 100%);
             color: white;
-            border: 1px solid #4a5568;
+            border: none;
             padding: 12px 24px;
             border-radius: 25px;
             cursor: pointer;
             font-size: 1rem;
             font-weight: 600;
-            transition: transform 0.2s ease;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 99, 210, 0.3);
         }
 
         .upload-btn:hover {
             transform: translateY(-2px);
-            background: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+            background: linear-gradient(135deg, #5a67d8 0%, #667eea 50%, #7c3aed 100%);
+            box-shadow: 0 8px 25px rgba(76, 99, 210, 0.4);
         }
 
         .url-input {
             width: 100%;
             padding: 15px;
-            border: 2px solid #4a5568;
+            border: 2px solid #475569;
             border-radius: 10px;
             font-size: 1rem;
             margin-bottom: 15px;
-            background: #1e1e2e;
-            color: #e0e0e0;
+            background: rgba(51, 65, 85, 0.8);
+            color: #f1f5f9;
+            transition: all 0.3s ease;
         }
-
+        
         .url-input:focus {
             outline: none;
-            border-color: #4facfe;
+            border-color: #5a67d8;
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2);
         }
 
+
         .url-input::placeholder {
-            color: #a0a0a0;
+            color: #94a3b8;
         }
 
         .analyze-btn {
@@ -748,6 +980,9 @@
         <div class="header">
             <h1>🏠 Accessibility Checker</h1>
             <p>Analyze homes for accessibility features and barriers</p>
+            <button id="themeToggle" class="theme-toggle" title="Toggle theme">
+                🌙
+            </button>
         </div>
 
         <div class="main-content">
@@ -979,6 +1214,61 @@
         const API_BASE = 'http://localhost:3000';
         const imageScraper = new ImageScraper();
 
+        // Theme management
+        const themes = ['dark', 'light', 'ocean', 'forest', 'sunset'];
+        let currentThemeIndex = 0;
+
+        // Initialize theme from localStorage or default to dark
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme && themes.includes(savedTheme)) {
+                currentThemeIndex = themes.indexOf(savedTheme);
+            }
+            applyTheme(themes[currentThemeIndex]);
+        }
+
+        // Apply theme to document
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                // Update button icon based on theme
+                const icons = {
+                    'dark': '🌙',
+                    'light': '☀️',
+                    'ocean': '🌊',
+                    'forest': '🌲',
+                    'sunset': '🌅'
+                };
+                themeToggle.textContent = icons[theme] || '🌙';
+            }
+        }
+
+        // Cycle through themes
+        function cycleTheme() {
+            currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+            const newTheme = themes[currentThemeIndex];
+            applyTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Initialize theme on page load
+        initializeTheme();
+
+        // Theme toggle button event listener
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            console.log('Theme toggle button found and ready');
+            themeToggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Theme toggle clicked!');
+                cycleTheme();
+            });
+        } else {
+            console.error('Theme toggle button not found!');
+        }
+
         // File upload handling
         document.getElementById('fileInput').addEventListener('change', handleFileSelect);
         
@@ -988,8 +1278,28 @@
         uploadCard.addEventListener('drop', handleDrop);
         uploadCard.addEventListener('dragleave', handleDragLeave);
 
+
         function handleFileSelect(event) {
             const files = Array.from(event.target.files);
+            
+            // Clear existing images before processing new ones
+            selectedImages = [];
+            currentImageIndex = 0;
+            
+            // Reset the image display
+            const imageViewer = document.getElementById('imageViewer');
+            const noImagesPlaceholder = document.getElementById('noImagesPlaceholder');
+            const imageNavigation = document.getElementById('imageNavigation');
+            const propertyAddress = document.getElementById('propertyAddress');
+            
+            if (imageViewer) imageViewer.style.display = 'none';
+            if (noImagesPlaceholder) noImagesPlaceholder.style.display = 'block';
+            if (imageNavigation) imageNavigation.style.display = 'none';
+            if (propertyAddress) propertyAddress.style.display = 'none';
+            
+            // Set flag to show property details form for manual uploads
+            window.isManualUpload = true;
+            
             processFiles(files);
         }
 
@@ -1038,9 +1348,20 @@
                 return;
             }
 
-            // Clear existing images when scraping new URL
+            // Clear existing images before scraping new ones
             selectedImages = [];
             currentImageIndex = 0;
+            
+            // Reset the image display
+            const imageViewer = document.getElementById('imageViewer');
+            const noImagesPlaceholder = document.getElementById('noImagesPlaceholder');
+            const imageNavigation = document.getElementById('imageNavigation');
+            const propertyAddress = document.getElementById('propertyAddress');
+            
+            if (imageViewer) imageViewer.style.display = 'none';
+            if (noImagesPlaceholder) noImagesPlaceholder.style.display = 'block';
+            if (imageNavigation) imageNavigation.style.display = 'none';
+            if (propertyAddress) propertyAddress.style.display = 'none';
             
             // Set flag to hide property details form for scraped content
             window.isManualUpload = false;
@@ -1231,9 +1552,9 @@
             
             addressText.textContent = `${addressLine}, ${city}, ${state} ${zipCode}`;
             
-        // Format property info with available details
-        let propertyInfoText = propertyType;
-        if (squareFeet !== "N/A" && squareFeet !== "") propertyInfoText += ` • ${parseInt(squareFeet).toLocaleString()} sq ft`;
+        // Format property info with available details and icons
+        let propertyInfoText = `🏠 ${propertyType}`;
+        if (squareFeet !== "N/A" && squareFeet !== "") propertyInfoText += ` • 📏 ${parseInt(squareFeet).toLocaleString()} sq ft`;
         
         propertyInfo.textContent = propertyInfoText;
             
@@ -1322,10 +1643,10 @@
             
             addressText.textContent = `${addressLine}, ${city}, ${state} ${zipCode}`;
             
-            // Format property info with available details
-            let propertyInfoText = propertyType;
-            if (squareFeet !== "N/A") propertyInfoText += ` • ${parseInt(squareFeet).toLocaleString()} sq ft`;
-            if (price !== "N/A") propertyInfoText += ` • ${price}`;
+            // Format property info with available details and icons
+            let propertyInfoText = `🏠 ${propertyType}`;
+            if (squareFeet !== "N/A") propertyInfoText += ` • 📏 ${parseInt(squareFeet).toLocaleString()} sq ft`;
+            if (price !== "N/A") propertyInfoText += ` • 💰 ${price}`;
             
             propertyInfo.textContent = propertyInfoText;
             
