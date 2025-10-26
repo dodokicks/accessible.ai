@@ -1062,10 +1062,15 @@
                         <input type="url" id="urlInput" class="url-input" placeholder="https://www.zillow.com/homedetails/...">
                         <button class="upload-btn" onclick="scrapeImages()" style="width: 100%; margin: 10px 0;">Scrape Images</button>
                         <div style="margin: 10px 0; padding: 10px; background: #2d3748; border-radius: 8px; font-size: 0.9rem; color: #a0a0a0; border: 1px solid #4a5568;">
-                            <strong style="color: #e0e0e0;">💡 Pro Tips:</strong><br>
+                            <strong style="color: #e0e0e0;">🚀 Enhanced Features:</strong><br>
+                            • 🪣 Images automatically uploaded to S3<br>
+                            • 🤖 AI analysis with AWS Bedrock<br>
+                            • 📁 Organized folder structure<br>
+                            • 💰 Cost estimates included<br>
+                            <br><strong style="color: #4facfe;">💡 Pro Tips:</strong><br>
                             • Try Zillow, Realtor.com, or property sites<br>
-                            • If scraping fails, try manual image upload<br>
-                            • Some sites block automated scraping
+                            • Analysis happens automatically during scraping<br>
+                            • Results include detailed accessibility scores
                         </div>
                         <div id="scrapingStatus" style="margin-top: 10px; font-size: 0.9rem; color: #a0a0a0;"></div>
                     </div>
@@ -1074,7 +1079,7 @@
 
             <!-- Analyze Button -->
             <button class="analyze-btn" id="analyzeBtn" onclick="analyzeImages()" disabled>
-                🔍 Analyze Accessibility
+                🤖 Analyze with Bedrock AI
             </button>
             
 
@@ -1212,7 +1217,7 @@
     <script>
         let selectedImages = [];
         let currentImageIndex = 0;
-        const API_BASE = 'http://localhost:3001';
+        const API_BASE = 'http://localhost:3000';
         const imageScraper = new ImageScraper();
 
         // Theme management
@@ -1371,9 +1376,9 @@
             document.getElementById('fileInput').value = '';
 
             try {
-                statusDiv.innerHTML = `<span style="color: blue;">🔄 Scraping...</span>`;
+                statusDiv.innerHTML = `<span style="color: blue;">🔄 Scraping images and uploading to S3...</span>`;
                 
-                // Call the Express backend API instead of browser-based scraping
+                // Call the new S3 + Bedrock integrated endpoint
                 const response = await fetch(`${API_BASE}/api/scrape`, {
                     method: 'POST',
                     headers: {
@@ -1381,7 +1386,8 @@
                     },
                     body: JSON.stringify({
                         url: url,
-                        maxImages: maxImages
+                        maxImages: maxImages,
+                        analyzeWithBedrock: true  // Enable Bedrock analysis
                     })
                 });
 
@@ -1392,40 +1398,62 @@
 
                 const result = await response.json();
                 
-                if (!result.success || result.images.length === 0) {
-                    if (result.message === 'Still scraping...') {
-                        statusDiv.innerHTML = `<span style="color: blue;">🔄 Scraping...</span>`;
-                        return;
-                    } else {
-                        statusDiv.innerHTML = `
-                            <span style="color: orange;">⚠️ No images found on this page</span>
-                            <br><small style="color: #666;">
-                                Try: 1) Different URL 2) Manual upload 3) Check if site blocks scraping
-                            </small>
-                        `;
-                        return;
-                    }
+                if (!result.success) {
+                    statusDiv.innerHTML = `
+                        <span style="color: red;">❌ Scraping failed</span>
+                        <br><small style="color: #666;">${result.message || 'Unknown error occurred'}</small>
+                    `;
+                    return;
                 }
 
-                // Convert image URLs to base64 and add to preview
-                for (const img of result.images) {
-                    try {
-                        const base64 = await imageUrlToBase64(img.url);
-                        addImageToPreview(img.filename, `data:image/jpeg;base64,${base64}`);
-                    } catch (error) {
-                        console.warn(`Failed to load image ${img.url}:`, error);
+                // Update status with S3 upload information
+                if (result.s3Upload) {
+                    statusDiv.innerHTML = `
+                        <span style="color: green;">✅ Scraping Complete!</span>
+                        <br><small style="color: #666;">
+                            📸 Found: ${result.scraping.imagesFound} images
+                            <br>🪣 Uploaded to S3: ${result.s3Upload.uploadedImages} images
+                            <br>📁 Folder: ${result.s3Upload.folderPath}
+                            ${result.s3Upload.failedUploads > 0 ? `<br>⚠️ Failed: ${result.s3Upload.failedUploads} images` : ''}
+                        </small>
+                    `;
+                }
+
+                // Convert S3 image URLs to base64 and add to preview
+                if (result.s3Upload && result.s3Upload.uploadedImageUrls) {
+                    for (const img of result.s3Upload.uploadedImageUrls) {
+                        try {
+                            const base64 = await imageUrlToBase64(img.s3Url);
+                            addImageToPreview(img.filename, `data:image/jpeg;base64,${base64}`);
+                        } catch (error) {
+                            console.warn(`Failed to load S3 image ${img.s3Url}:`, error);
+                        }
                     }
                 }
 
                 // Populate property details with scraped information
                 populateScrapedPropertyDetails(url, result.propertyDetails);
 
-                statusDiv.innerHTML = `<span style="color: green;">✅ Found and added ${result.images.length} images</span>`;
+                // Store Bedrock analysis results if available
+                if (result.bedrockAnalysis) {
+                    window.bedrockAnalysisResults = result.bedrockAnalysis;
+                    console.log('Bedrock analysis completed:', result.bedrockAnalysis);
+                    
+                    // Update status to show Bedrock analysis
+                    statusDiv.innerHTML += `
+                        <br><span style="color: #4facfe;">🤖 Bedrock Analysis: ${result.bedrockAnalysis.overallScore}/100</span>
+                        <br><small style="color: #666;">Analyzed ${result.bedrockAnalysis.analyzedImages} images</small>
+                    `;
+                }
+
                 document.getElementById('urlInput').value = '';
 
             } catch (error) {
                 console.error('Scraping error:', error);
-                statusDiv.innerHTML = `<span style="color: blue;">🔄 Scraping...</span>`;
+                statusDiv.innerHTML = `
+                    <span style="color: red;">❌ Error: ${error.message}</span>
+                    <br><small style="color: #666;">Please try again or check if the backend server is running</small>
+                `;
             }
         }
 
@@ -1704,6 +1732,9 @@
             // Reset upload type flag
             window.isManualUpload = false;
             
+            // Clear Bedrock analysis results
+            window.bedrockAnalysisResults = null;
+            
             // Clear file input
             document.getElementById('fileInput').value = '';
             
@@ -1715,6 +1746,9 @@
             
             // Clear scraping status
             document.getElementById('scrapingStatus').innerHTML = '';
+            
+            // Hide results section
+            document.getElementById('resultsSection').style.display = 'none';
         }
 
         function updateAnalyzeButton() {
@@ -1729,14 +1763,23 @@
             const resultsSection = document.getElementById('resultsSection');
             const resultsContent = document.getElementById('resultsContent');
 
+            // Check if we already have Bedrock analysis results from scraping
+            if (window.bedrockAnalysisResults) {
+                console.log('Using existing Bedrock analysis results');
+                displayBedrockAnalysisResults(window.bedrockAnalysisResults);
+                resultsSection.style.display = 'block';
+                return;
+            }
+
             // Show loading state
             analyzeBtn.disabled = true;
-            analyzeBtn.textContent = '🔄 Analyzing...';
+            analyzeBtn.textContent = '🔄 Analyzing with Bedrock...';
             resultsSection.style.display = 'block';
             resultsContent.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>Analyzing images for accessibility features...</p>
+                    <p>Analyzing images with AWS Bedrock for accessibility features...</p>
+                    <small style="color: #666;">This may take a few moments as we process each image</small>
                 </div>
             `;
 
@@ -1764,7 +1807,7 @@
                     }
                 });
 
-                // Call the Express backend API
+                // Call the Express backend API for Bedrock analysis
                 const response = await fetch(`${API_BASE}/api/analyze`, {
                     method: 'POST',
                     headers: {
@@ -1791,12 +1834,83 @@
                         <h4>❌ Analysis Failed</h4>
                         <p>${error.message}</p>
                         <p>Please try again or check if the backend server is running.</p>
+                        <p><strong>Tip:</strong> Try scraping from a URL first to get automatic Bedrock analysis!</p>
                     </div>
                 `;
             } finally {
                 analyzeBtn.disabled = false;
-                analyzeBtn.textContent = '🔍 Analyze Accessibility';
+                analyzeBtn.textContent = '🤖 Analyze with Bedrock AI';
             }
+        }
+
+        function displayBedrockAnalysisResults(bedrockAnalysis) {
+            const resultsContent = document.getElementById('resultsContent');
+            
+            if (!bedrockAnalysis || !bedrockAnalysis.success) {
+                resultsContent.innerHTML = `
+                    <div class="error">
+                        <h4>❌ No Bedrock Analysis Results</h4>
+                        <p>The Bedrock analysis completed but no results were returned.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const overallScore = bedrockAnalysis.overallScore || 0;
+            
+            // Determine score class
+            let scoreClass = 'score-poor';
+            if (overallScore >= 90) scoreClass = 'score-excellent';
+            else if (overallScore >= 75) scoreClass = 'score-good';
+            else if (overallScore >= 60) scoreClass = 'score-fair';
+
+            resultsContent.innerHTML = `
+                <div class="score-display">
+                    <div class="score-circle ${scoreClass}">
+                        ${overallScore}
+                    </div>
+                    <h3>🤖 Bedrock AI Accessibility Score</h3>
+                    <p>Based on analysis of ${bedrockAnalysis.analyzedImages || selectedImages.length} images</p>
+                    <small style="color: #4facfe;">Powered by AWS Bedrock & Claude Vision</small>
+                </div>
+                
+                <div class="results-grid">
+                    <div class="result-card">
+                        <h3>✅ Key Strengths</h3>
+                        <ul class="result-list">
+                            ${(bedrockAnalysis.keyStrengths || []).map(strength => `<li class="positive">${strength}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>⚠️ Critical Issues</h3>
+                        <ul class="result-list">
+                            ${(bedrockAnalysis.criticalIssues || []).map(issue => `<li class="negative">${issue}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>📋 Recommendations</h3>
+                        <ul class="result-list">
+                            ${(bedrockAnalysis.recommendations || []).map(rec => `<li class="neutral">${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>💰 Estimated Cost</h3>
+                        <p style="color: #4facfe; font-size: 1.2rem; font-weight: 600;">
+                            ${bedrockAnalysis.estimatedCost || 'Contact accessibility consultant'}
+                        </p>
+                    </div>
+                </div>
+                
+                ${bedrockAnalysis.summary ? `
+                    <div class="result-card" style="margin-top: 20px;">
+                        <h3>📝 Comprehensive Summary</h3>
+                        <p style="color: #a0a0a0; line-height: 1.6;">${bedrockAnalysis.summary}</p>
+                    </div>
+                ` : ''}
+            `;
         }
 
         function displayAnalysisResults(result) {
